@@ -1,0 +1,11 @@
+[package]
+name = "cat-noodle"
+version = "0.1.0"
+authors = ["Fryer <Fryer@users.noreply.github.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+glfw = "0.34.0"
+gl = "0.14.0"
