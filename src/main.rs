@@ -1,10 +1,7 @@
 extern crate glfw;
-extern crate gl;
-
-use std::ptr;
-use std::ffi::CString;
 use glfw::Context;
-use gl::types::*;
+
+mod rgl;
 
 
 fn main() {
@@ -47,84 +44,24 @@ fn init_renderer() {
 
 
 fn init_shaders() {
-    let vertex_shader = unsafe { gl::CreateShader(gl::VERTEX_SHADER) };
-    assert_ne!(vertex_shader, 0);
-    let source = CString::new("#version 400\nvoid main() {}\n").unwrap();
-    unsafe { gl::ShaderSource(vertex_shader, 1, &source.as_ptr(), ptr::null()); }
-    assert_eq!(unsafe { gl::GetError() }, gl::NO_ERROR);
-    unsafe { gl::CompileShader(vertex_shader); }
-    assert_eq!(unsafe { gl::GetError() }, gl::NO_ERROR);
-    let mut compile_status = gl::FALSE as GLint;
-    unsafe { gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut compile_status as *mut _); }
-    if compile_status == gl::FALSE as GLint {
-        let mut log_length = 0;
-        unsafe { gl::GetShaderiv(vertex_shader, gl::INFO_LOG_LENGTH, &mut log_length as *mut _); }
-        if log_length > 0 {
-            let mut log = vec![0; log_length as usize];
-            let log_ptr = log.as_mut_ptr();
-            unsafe { gl::GetShaderInfoLog(vertex_shader, log_length, ptr::null_mut(), log_ptr); }
-            let log = unsafe { CString::from_raw(log_ptr) }.into_string().unwrap();
-            panic!("Vertex shader compilation error:\n{}", log);
-        }
-        panic!("Vertex shader compilation error.");
-    }
+    let mut vertex_shader = rgl::Shader::new(rgl::ShaderType::Vertex).unwrap();
+    vertex_shader.set_source("#version 400\nvoid main() {}\n").unwrap();
+    vertex_shader.compile().unwrap();
 
-    let fragment_shader = unsafe { gl::CreateShader(gl::FRAGMENT_SHADER) };
-    assert_ne!(fragment_shader, 0);
-    let source = CString::new("#version 400\nvoid main() {}\n").unwrap();
-    unsafe { gl::ShaderSource(fragment_shader, 1, &source.as_ptr(), ptr::null()); }
-    assert_eq!(unsafe { gl::GetError() }, gl::NO_ERROR);
-    unsafe { gl::CompileShader(fragment_shader); }
-    assert_eq!(unsafe { gl::GetError() }, gl::NO_ERROR);
-    let mut compile_status = gl::FALSE as GLint;
-    unsafe { gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut compile_status as *mut _); }
-    if compile_status == gl::FALSE as GLint {
-        let mut log_length = 0;
-        unsafe { gl::GetShaderiv(fragment_shader, gl::INFO_LOG_LENGTH, &mut log_length as *mut _); }
-        if log_length > 0 {
-            let mut log = vec![0; log_length as usize];
-            let log_ptr = log.as_mut_ptr();
-            unsafe { gl::GetShaderInfoLog(fragment_shader, log_length, ptr::null_mut(), log_ptr); }
-            let log = unsafe { CString::from_raw(log_ptr) }.into_string().unwrap();
-            panic!("Fragment shader compilation error:\n{}", log);
-        }
-        panic!("Fragment shader compilation error.");
-    }
+    let mut fragment_shader = rgl::Shader::new(rgl::ShaderType::Fragment).unwrap();
+    fragment_shader.set_source("#version 400\nvoid main() {}\n").unwrap();
+    fragment_shader.compile().unwrap();
 
-    let program = unsafe { gl::CreateProgram() };
-    assert_ne!(program, 0);
-    unsafe { gl::AttachShader(program, vertex_shader); }
-    assert_eq!(unsafe { gl::GetError() }, gl::NO_ERROR);
-    unsafe { gl::AttachShader(program, fragment_shader); }
-    assert_eq!(unsafe { gl::GetError() }, gl::NO_ERROR);
-    unsafe { gl::LinkProgram(program); }
-    assert_eq!(unsafe { gl::GetError() }, gl::NO_ERROR);
-    let mut link_status = gl::FALSE as GLint;
-    unsafe { gl::GetProgramiv(program, gl::LINK_STATUS, &mut link_status as *mut _); }
-    if link_status == gl::FALSE as GLint {
-        let mut log_length = 0;
-        unsafe { gl::GetProgramiv(program, gl::INFO_LOG_LENGTH, &mut log_length as *mut _); }
-        if log_length > 0 {
-            let mut log = vec![0; log_length as usize];
-            let log_ptr = log.as_mut_ptr();
-            unsafe { gl::GetProgramInfoLog(program, log_length, ptr::null_mut(), log_ptr); }
-            let log = unsafe { CString::from_raw(log_ptr) }.into_string().unwrap();
-            panic!("Shader program link error:\n{}", log);
-        }
-        panic!("Shader program link error.");
-    }
-
-    unsafe { gl::DeleteShader(vertex_shader); }
-    unsafe { gl::DeleteShader(fragment_shader); }
-
-    unsafe { gl::UseProgram(program); }
-    assert_eq!(unsafe { gl::GetError() }, gl::NO_ERROR);
+    let mut program = rgl::Program::new().unwrap();
+    program.attach_shader(&vertex_shader).unwrap();
+    program.attach_shader(&fragment_shader).unwrap();
+    program.link().unwrap();
+    program.use_program().unwrap();
 }
 
 
 fn render(glfw: &glfw::Glfw) {
     let time = glfw.get_time();
     let l = time.sin() as f32 * 0.5 + 0.5;
-    unsafe { gl::ClearColor(l, l, l, 1.); }
-    unsafe { gl::Clear(gl::COLOR_BUFFER_BIT); }
+    rgl::clear(l, l, l, 1.).unwrap();
 }
