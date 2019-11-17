@@ -45,11 +45,13 @@ fn init_renderer() {
 
 fn init_shaders() {
     let mut vertex_shader = rgl::Shader::new(rgl::ShaderType::Vertex).unwrap();
-    vertex_shader.set_source("#version 400\nvoid main() {}\n").unwrap();
+    let source = include_str!("sprite.vert");
+    vertex_shader.set_source(source).unwrap();
     vertex_shader.compile().unwrap();
 
     let mut fragment_shader = rgl::Shader::new(rgl::ShaderType::Fragment).unwrap();
-    fragment_shader.set_source("#version 400\nvoid main() {}\n").unwrap();
+    let source = include_str!("sprite.frag");
+    fragment_shader.set_source(source).unwrap();
     fragment_shader.compile().unwrap();
 
     let mut program = rgl::Program::new().unwrap();
