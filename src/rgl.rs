@@ -85,12 +85,12 @@ impl Shader {
     pub fn compile(&mut self) -> Result<(), GLError> {
         unsafe { gl::CompileShader(self.index); }
         handle_error("CompileShader")?;
-        let mut compile_status = gl::FALSE as GLint;
-        unsafe { gl::GetShaderiv(self.index, gl::COMPILE_STATUS, &mut compile_status as *mut _); }
+        let mut compile_status = gl::FALSE as _;
+        unsafe { gl::GetShaderiv(self.index, gl::COMPILE_STATUS, &mut compile_status); }
         handle_error("GetShaderiv")?;
-        if compile_status == gl::FALSE as GLint {
+        if compile_status == gl::FALSE as _ {
             let mut log_length = 0;
-            unsafe { gl::GetShaderiv(self.index, gl::INFO_LOG_LENGTH, &mut log_length as *mut _); }
+            unsafe { gl::GetShaderiv(self.index, gl::INFO_LOG_LENGTH, &mut log_length); }
             handle_error("GetShaderiv")?;
             if log_length > 0 {
                 let mut log = vec![0; log_length as usize];
@@ -132,12 +132,12 @@ impl Program {
     pub fn link(&mut self) -> Result<(), GLError> {
         unsafe { gl::LinkProgram(self.index); }
         handle_error("LinkProgram")?;
-        let mut link_status = gl::FALSE as GLint;
-        unsafe { gl::GetProgramiv(self.index, gl::LINK_STATUS, &mut link_status as *mut _); }
+        let mut link_status = gl::FALSE as _;
+        unsafe { gl::GetProgramiv(self.index, gl::LINK_STATUS, &mut link_status); }
         handle_error("GetProgramiv")?;
-        if link_status == gl::FALSE as GLint {
+        if link_status == gl::FALSE as _ {
             let mut log_length = 0;
-            unsafe { gl::GetProgramiv(self.index, gl::INFO_LOG_LENGTH, &mut log_length as *mut _); }
+            unsafe { gl::GetProgramiv(self.index, gl::INFO_LOG_LENGTH, &mut log_length); }
             handle_error("GetProgramiv")?;
             if log_length > 0 {
                 let mut log = vec![0; log_length as usize];
