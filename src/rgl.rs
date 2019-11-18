@@ -28,18 +28,10 @@ pub struct Program {
 
 
 fn handle_error(function: &str) -> Result<(), GLError> {
-    let mut error = unsafe { gl::GetError() };
-    if error == gl::NO_ERROR {
+    if unsafe { gl::GetError() } == gl::NO_ERROR {
         return Ok(());
     }
-    while error != gl::NO_ERROR {
-        match error {
-            gl::OUT_OF_MEMORY => return Err(GLError { error: format!("{} failed (OUT_OF_MEMORY)", function) }),
-            gl::CONTEXT_LOST => return Ok(()),
-            _ => {}
-        }
-        error = unsafe { gl::GetError() };
-    }
+    while unsafe { gl::GetError() } != gl::NO_ERROR {}
     Err(GLError { error: format!("{} failed", function) })
 }
 
