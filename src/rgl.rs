@@ -2,7 +2,8 @@ use std::{
     error::Error,
     fmt,
     ptr,
-    ffi::CString
+    ffi::CString,
+    mem
 };
 
 extern crate gl;
@@ -24,6 +25,26 @@ pub struct Shader {
 
 pub struct Program {
     index: GLuint
+}
+
+pub enum BufferUsage {
+    StreamDraw,
+    StaticDraw
+}
+
+pub struct VertexBuffer {
+    index: GLuint,
+    size: usize
+}
+
+pub enum AttributeType {
+    UnsignedByte,
+    Float
+}
+
+pub struct VertexArray {
+    index: GLuint,
+    buffer: VertexBuffer
 }
 
 
@@ -164,5 +185,86 @@ impl Program {
 impl Drop for Program {
     fn drop(&mut self) {
         unsafe { gl::DeleteProgram(self.index); }
+    }
+}
+
+
+impl VertexBuffer {
+    pub fn new() -> Result<VertexBuffer, GLError> {
+        let mut index = 0;
+        unsafe { gl::GenBuffers(1, &mut index); }
+        handle_error("GenBuffers")?;
+        Ok(VertexBuffer { index, size: 0 })
+    }
+
+
+    pub fn set_data<T>(&mut self, data: &[T], usage: BufferUsage) -> Result<(), GLError> {
+        unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, self.index); }
+        handle_error("BindBuffer")?;
+        let usage = match usage {
+            BufferUsage::StreamDraw => gl::STREAM_DRAW,
+            BufferUsage::StaticDraw => gl::STATIC_DRAW
+        };
+        unsafe { gl::BufferData(gl::ARRAY_BUFFER, mem::size_of_val(data) as _, data.as_ptr() as _, usage); }
+        handle_error("BufferData")?;
+        self.size = data.len();
+        Ok(())
+    }
+}
+
+
+impl Drop for VertexBuffer {
+    fn drop(&mut self) {
+        unsafe { gl::DeleteBuffers(1, &self.index); }
+    }
+}
+
+
+impl VertexArray {
+    pub fn new(buffer: VertexBuffer) -> Result<VertexArray, GLError> {
+        let mut index = 0;
+        unsafe { gl::GenVertexArrays(1, &mut index); }
+        handle_error("GenVertexArrays")?;
+        Ok(VertexArray { index, buffer })
+    }
+
+
+    pub fn define_attribute(&mut self,
+                            index: u32,
+                            size: i32,
+                            attribute_type: AttributeType,
+                            normalized: bool,
+                            stride: usize,
+                            offset: usize) -> Result<(), GLError>
+    {
+        unsafe { gl::BindVertexArray(self.index); }
+        handle_error("BindVertexArray")?;
+        unsafe { gl::EnableVertexAttribArray(index); }
+        handle_error("EnableVertexAttribArray")?;
+        let attribute_type = match attribute_type {
+            AttributeType::UnsignedByte => gl::UNSIGNED_BYTE,
+            AttributeType::Float => gl::FLOAT
+        };
+        unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, self.buffer.index); }
+        handle_error("BindBuffer")?;
+        unsafe { gl::VertexAttribPointer(index, size, attribute_type, normalized as _, stride as _, offset as _); }
+        handle_error("VertexAttribPointer")?;
+        Ok(())
+    }
+
+
+    pub fn draw(&self) -> Result<(), GLError> {
+        unsafe { gl::BindVertexArray(self.index); }
+        handle_error("BindVertexArray")?;
+        unsafe { gl::DrawArrays(gl::TRIANGLES, 0, self.buffer.size as _); }
+        handle_error("DrawArrays")?;
+        Ok(())
+    }
+}
+
+
+impl Drop for VertexArray {
+    fn drop(&mut self) {
+        unsafe { gl::DeleteVertexArrays(1, &self.index); }
     }
 }
