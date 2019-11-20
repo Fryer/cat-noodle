@@ -1,11 +1,14 @@
 #version 410
 
-layout(location = 0) in vec2 position;
-layout(location = 1) in vec3 vertColor;
+layout(location = 0) in vec2 vertPosition;
+layout(location = 1) in vec2 vertTexCoord;
+layout(location = 2) in vec3 vertColor;
 
-layout(location = 0) out vec3 color;
+out vec2 texCoord;
+out vec3 color;
 
 void main() {
-    gl_Position = vec4(position.xy, 0.0, 1.0);
+    gl_Position = vec4(vertPosition.xy, 0.0, 1.0);
+    texCoord = vertTexCoord;
     color = vertColor;
 }

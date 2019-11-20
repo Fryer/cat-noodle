@@ -66,6 +66,27 @@ pub fn clear(r: f32, g: f32, b: f32, a: f32) -> Result<(), GLError> {
 }
 
 
+pub unsafe fn test_texture(program: &Program, data: *const u8, width: i32, height: i32) {
+    program.use_program().unwrap();
+    let texture0 = CString::new("texture0").unwrap();
+    let texture0 = gl::GetUniformLocation(program.index, texture0.as_ptr());
+    gl::Uniform1i(texture0, 0);
+
+    let mut index = 0;
+    gl::GenTextures(1, &mut index);
+    gl::BindTexture(gl::TEXTURE_2D, index);
+    gl::TexImage2D(gl::TEXTURE_2D, 0,
+                   gl::RGBA as _,
+                   width, height, 0,
+                   gl::RGBA, gl::UNSIGNED_BYTE,
+                   data as _);
+    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _);
+    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _);
+    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_BORDER as _);
+    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_BORDER as _);
+}
+
+
 impl Error for GLError {}
 
 
