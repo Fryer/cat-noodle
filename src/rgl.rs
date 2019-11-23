@@ -113,6 +113,9 @@ impl Shader {
         };
         let shader = unsafe { gl::CreateShader(shader_type) };
         handle_error("CreateShader")?;
+        if shader == 0 {
+            return Err(GLError { error: String::from("CreateShader failed") });
+        }
         Ok(Shader { index: shader })
     }
 
@@ -136,8 +139,8 @@ impl Shader {
             unsafe { gl::GetShaderiv(self.index, gl::INFO_LOG_LENGTH, &mut log_length); }
             handle_error("GetShaderiv")?;
             if log_length > 0 {
-                let mut log = vec![0; log_length as usize];
-                let log_ptr = log.as_mut_ptr();
+                let log = unsafe { CString::from_vec_unchecked(vec![0; log_length as usize]) };
+                let log_ptr = log.into_raw();
                 unsafe { gl::GetShaderInfoLog(self.index, log_length, ptr::null_mut(), log_ptr); }
                 handle_error("GetShaderInfoLog")?;
                 let log = unsafe { CString::from_raw(log_ptr) }.into_string().unwrap();
@@ -161,6 +164,9 @@ impl Program {
     pub fn new() -> Result<Program, GLError> {
         let program = unsafe { gl::CreateProgram() };
         handle_error("CreateProgram")?;
+        if program == 0 {
+            return Err(GLError { error: String::from("CreateProgram failed") });
+        }
         Ok(Program { index: program })
     }
 
@@ -183,8 +189,8 @@ impl Program {
             unsafe { gl::GetProgramiv(self.index, gl::INFO_LOG_LENGTH, &mut log_length); }
             handle_error("GetProgramiv")?;
             if log_length > 0 {
-                let mut log = vec![0; log_length as usize];
-                let log_ptr = log.as_mut_ptr();
+                let log = unsafe { CString::from_vec_unchecked(vec![0; log_length as usize]) };
+                let log_ptr = log.into_raw();
                 unsafe { gl::GetProgramInfoLog(self.index, log_length, ptr::null_mut(), log_ptr); }
                 handle_error("GetProgramInfoLog")?;
                 let log = unsafe { CString::from_raw(log_ptr) }.into_string().unwrap();
