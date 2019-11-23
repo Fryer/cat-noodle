@@ -23,6 +23,11 @@ pub struct Shader {
     index: GLuint
 }
 
+pub enum Uniform {
+    Integer1(i32),
+    Matrix3x2([(f32, f32); 3])
+}
+
 pub struct Program {
     index: GLuint
 }
@@ -66,14 +71,10 @@ pub fn clear(r: f32, g: f32, b: f32, a: f32) -> Result<(), GLError> {
 }
 
 
-pub unsafe fn test_texture(program: &Program, data: *const u8, width: i32, height: i32) {
-    program.use_program().unwrap();
-    let texture0 = CString::new("texture0").unwrap();
-    let texture0 = gl::GetUniformLocation(program.index, texture0.as_ptr());
-    gl::Uniform1i(texture0, 0);
-
+pub unsafe fn test_texture(data: *const u8, width: i32, height: i32) {
     let mut index = 0;
     gl::GenTextures(1, &mut index);
+    gl::ActiveTexture(gl::TEXTURE0);
     gl::BindTexture(gl::TEXTURE_2D, index);
     gl::TexImage2D(gl::TEXTURE_2D, 0,
                    gl::RGBA as _,
@@ -198,6 +199,28 @@ impl Program {
     pub fn use_program(&self) -> Result<(), GLError> {
         unsafe { gl::UseProgram(self.index); }
         handle_error("UseProgram")?;
+        Ok(())
+    }
+
+
+    pub fn set_uniform(&mut self, location: &str, data: Uniform) -> Result<(), GLError> {
+        self.use_program()?;
+        let location = CString::new(location).unwrap();
+        let uniform = unsafe { gl::GetUniformLocation(self.index, location.as_ptr()) };
+        handle_error("UseProgram")?;
+        if uniform == -1 {
+            return Err(GLError { error: String::from("GetUniformLocation failed") });
+        }
+        match data {
+            Uniform::Integer1(v0) => {
+                unsafe { gl::Uniform1i(uniform, v0); }
+                handle_error("Uniform1i")?;
+            }
+            Uniform::Matrix3x2(value) => {
+                unsafe { gl::UniformMatrix3x2fv(uniform, 1, gl::FALSE, value.as_ptr() as _); }
+                handle_error("UniformMatrix3x2fv")?;
+            }
+        }
         Ok(())
     }
 }

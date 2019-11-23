@@ -35,20 +35,20 @@ fn main() {
     window.make_current();
     glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
-    let renderer = init_renderer();
+    let mut renderer = init_renderer();
 
     let cat_image = image::open("img/cat.png").unwrap().to_rgba();
     let cat_width = cat_image.width();
     let cat_height = cat_image.height();
     let cat_data = cat_image.into_raw();
-    unsafe { rgl::test_texture(&renderer.sprite_program, cat_data.as_ptr(), cat_width as _, cat_height as _); }
+    unsafe { rgl::test_texture(cat_data.as_ptr(), cat_width as _, cat_height as _); }
 
     while !window.should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
             handle_event(event, &mut window);
         }
-        render(&glfw, &renderer);
+        render(&glfw, &mut renderer);
         window.swap_buffers();
     }
 }
@@ -88,6 +88,8 @@ fn init_shaders() -> rgl::Program {
     program.attach_shader(&fragment_shader).unwrap();
     program.link().unwrap();
 
+    program.set_uniform("texture0", rgl::Uniform::Integer1(0)).unwrap();
+
     program
 }
 
@@ -100,7 +102,7 @@ fn init_sprites() -> rgl::VertexArray {
     let color_offset = &vertex.2 as *const _ as usize - &vertex as *const _ as usize;
 
     let mut buffer = rgl::VertexBuffer::new().unwrap();
-    let w = 4.5 / 16.0;
+    let w = 0.5;
     let h = 0.5;
     let vertices = [
         (Position(-w, h), TexCoord(0.0, 0.0), Color(255, 255, 255)),
@@ -121,10 +123,17 @@ fn init_sprites() -> rgl::VertexArray {
 }
 
 
-fn render(glfw: &glfw::Glfw, renderer: &Renderer) {
+fn render(glfw: &glfw::Glfw, renderer: &mut Renderer) {
     let time = glfw.get_time();
     let l = time.sin() as f32 * 0.1 + 0.2;
     rgl::clear(l, l, l, 1.).unwrap();
     renderer.sprite_program.use_program().unwrap();
+    let aspect = 9.0 / 16.0;
+    let transform = rgl::Uniform::Matrix3x2([
+        (time.cos() as f32 * aspect, -time.sin() as f32),
+        (time.sin() as f32 * aspect, time.cos() as f32),
+        ((time * 0.5).cos() as f32 * 0.5 * aspect, (time * 0.5).sin() as f32 * 0.5)
+    ]);
+    renderer.sprite_program.set_uniform("transform", transform).unwrap();
     renderer.sprite.draw().unwrap();
 }
