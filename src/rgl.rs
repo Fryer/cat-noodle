@@ -52,6 +52,10 @@ pub struct VertexArray {
     buffer: VertexBuffer
 }
 
+pub struct Texture {
+    index: GLuint
+}
+
 
 fn handle_error(function: &str) -> Result<(), GLError> {
     if unsafe { gl::GetError() } == gl::NO_ERROR {
@@ -68,23 +72,6 @@ pub fn clear(r: f32, g: f32, b: f32, a: f32) -> Result<(), GLError> {
     unsafe { gl::Clear(gl::COLOR_BUFFER_BIT); }
     handle_error("Clear")?;
     Ok(())
-}
-
-
-pub unsafe fn test_texture(data: *const u8, width: i32, height: i32) {
-    let mut index = 0;
-    gl::GenTextures(1, &mut index);
-    gl::ActiveTexture(gl::TEXTURE0);
-    gl::BindTexture(gl::TEXTURE_2D, index);
-    gl::TexImage2D(gl::TEXTURE_2D, 0,
-                   gl::RGBA as _,
-                   width, height, 0,
-                   gl::RGBA, gl::UNSIGNED_BYTE,
-                   data as _);
-    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _);
-    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _);
-    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_BORDER as _);
-    gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_BORDER as _);
 }
 
 
@@ -316,5 +303,56 @@ impl VertexArray {
 impl Drop for VertexArray {
     fn drop(&mut self) {
         unsafe { gl::DeleteVertexArrays(1, &self.index); }
+    }
+}
+
+
+impl Texture {
+    pub fn new() -> Result<Texture, GLError> {
+        let mut index = 0;
+        unsafe { gl::GenTextures(1, &mut index); }
+        handle_error("GenTextures")?;
+        unsafe { gl::BindTexture(gl::TEXTURE_2D, index); }
+        handle_error("BindTexture")?;
+        unsafe {
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
+        }
+        handle_error("TexParameteri")?;
+        Ok(Texture { index })
+    }
+
+
+    pub fn set_data<T>(&mut self, data: &[T], width: i32, height: i32) -> Result<(), GLError> {
+        assert_eq!(mem::size_of_val(data), (width * height) as usize * 4);
+        unsafe { gl::BindTexture(gl::TEXTURE_2D, self.index); }
+        handle_error("BindTexture")?;
+        unsafe {
+            gl::TexImage2D(gl::TEXTURE_2D, 0,
+                       gl::RGBA as _,
+                       width, height, 0,
+                       gl::RGBA, gl::UNSIGNED_BYTE,
+                       data.as_ptr() as _);
+        }
+        handle_error("TexImage2D")?;
+        Ok(())
+    }
+
+
+    pub fn bind(&self, unit: u32) -> Result<(), GLError> {
+        unsafe { gl::ActiveTexture(gl::TEXTURE0 + unit); }
+        handle_error("ActiveTexture")?;
+        unsafe { gl::BindTexture(gl::TEXTURE_2D, self.index); }
+        handle_error("BindTexture")?;
+        Ok(())
+    }
+}
+
+
+impl Drop for Texture {
+    fn drop(&mut self) {
+        unsafe { gl::DeleteTextures(1, &self.index); }
     }
 }

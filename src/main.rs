@@ -14,7 +14,8 @@ struct Color(u8, u8, u8);
 
 struct Renderer {
     sprite_program: rgl::Program,
-    sprite: rgl::VertexArray
+    sprite: rgl::VertexArray,
+    texture: rgl::Texture
 }
 
 
@@ -36,12 +37,6 @@ fn main() {
     glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
     let mut renderer = init_renderer();
-
-    let cat_image = image::open("img/cat.png").unwrap().to_rgba();
-    let cat_width = cat_image.width();
-    let cat_height = cat_image.height();
-    let cat_data = cat_image.into_raw();
-    unsafe { rgl::test_texture(cat_data.as_ptr(), cat_width as _, cat_height as _); }
 
     while !window.should_close() {
         glfw.poll_events();
@@ -67,7 +62,8 @@ fn handle_event(event: glfw::WindowEvent, window: &mut glfw::Window) {
 fn init_renderer() -> Renderer {
     Renderer {
         sprite_program: init_shaders(),
-        sprite: init_sprites()
+        sprite: init_sprites(),
+        texture: init_textures()
     }
 }
 
@@ -123,6 +119,19 @@ fn init_sprites() -> rgl::VertexArray {
 }
 
 
+fn init_textures() -> rgl::Texture {
+    let cat_image = image::open("img/cat.png").unwrap().to_rgba();
+    let cat_width = cat_image.width();
+    let cat_height = cat_image.height();
+    let cat_data = cat_image.into_raw();
+
+    let mut texture = rgl::Texture::new().unwrap();
+    texture.set_data(cat_data.as_slice(), cat_width as _, cat_height as _).unwrap();
+
+    texture
+}
+
+
 fn render(glfw: &glfw::Glfw, renderer: &mut Renderer) {
     let time = glfw.get_time();
     let l = time.sin() as f32 * 0.1 + 0.2;
@@ -134,6 +143,7 @@ fn render(glfw: &glfw::Glfw, renderer: &mut Renderer) {
         (time.sin() as f32 * aspect, time.cos() as f32),
         ((time * 0.5).cos() as f32 * 0.5 * aspect, (time * 0.5).sin() as f32 * 0.5)
     ]);
+    renderer.texture.bind(0).unwrap();
     renderer.sprite_program.set_uniform("transform", transform).unwrap();
     renderer.sprite.draw().unwrap();
 }
