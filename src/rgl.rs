@@ -38,8 +38,7 @@ pub enum BufferUsage {
 }
 
 pub struct VertexBuffer {
-    index: GLuint,
-    size: usize
+    index: GLuint
 }
 
 pub enum AttributeType {
@@ -71,6 +70,13 @@ pub fn clear(r: f32, g: f32, b: f32, a: f32) -> Result<(), GLError> {
     handle_error("ClearColor")?;
     unsafe { gl::Clear(gl::COLOR_BUFFER_BIT); }
     handle_error("Clear")?;
+    Ok(())
+}
+
+
+pub fn draw(count: i32) -> Result<(), GLError> {
+    unsafe { gl::DrawArrays(gl::TRIANGLES, 0, count); }
+    handle_error("DrawArrays")?;
     Ok(())
 }
 
@@ -231,7 +237,7 @@ impl VertexBuffer {
         let mut index = 0;
         unsafe { gl::GenBuffers(1, &mut index); }
         handle_error("GenBuffers")?;
-        Ok(VertexBuffer { index, size: 0 })
+        Ok(VertexBuffer { index })
     }
 
 
@@ -244,7 +250,6 @@ impl VertexBuffer {
         };
         unsafe { gl::BufferData(gl::ARRAY_BUFFER, mem::size_of_val(data) as _, data.as_ptr() as _, usage); }
         handle_error("BufferData")?;
-        self.size = data.len();
         Ok(())
     }
 }
@@ -290,11 +295,9 @@ impl VertexArray {
     }
 
 
-    pub fn draw(&self) -> Result<(), GLError> {
+    pub fn bind(&self) -> Result<(), GLError> {
         unsafe { gl::BindVertexArray(self.index); }
         handle_error("BindVertexArray")?;
-        unsafe { gl::DrawArrays(gl::TRIANGLES, 0, self.buffer.size as _); }
-        handle_error("DrawArrays")?;
         Ok(())
     }
 }

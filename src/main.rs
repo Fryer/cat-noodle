@@ -145,5 +145,6 @@ fn render(glfw: &glfw::Glfw, renderer: &mut Renderer) {
     ]);
     renderer.texture.bind(0).unwrap();
     renderer.sprite_program.set_uniform("transform", transform).unwrap();
-    renderer.sprite.draw().unwrap();
+    renderer.sprite.bind().unwrap();
+    rgl::draw(6).unwrap();
 }
