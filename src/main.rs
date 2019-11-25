@@ -1,22 +1,8 @@
-use std::mem;
-
 extern crate glfw;
 use glfw::Context;
 
-extern crate image;
-
-use rgl;
-
-
-struct Position(f32, f32);
-struct TexCoord(f32, f32);
-struct Color(u8, u8, u8);
-
-struct Renderer {
-    sprite_program: rgl::Program,
-    sprite: rgl::VertexArray,
-    texture: rgl::Texture
-}
+mod renderer;
+use renderer::Renderer;
 
 
 fn main() {
@@ -36,14 +22,14 @@ fn main() {
     window.make_current();
     glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
-    let mut renderer = init_renderer();
+    let mut renderer = Renderer::new().unwrap();
 
     while !window.should_close() {
         glfw.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
             handle_event(event, &mut window);
         }
-        render(&glfw, &mut renderer);
+        renderer.render().unwrap();
         window.swap_buffers();
     }
 }
@@ -56,95 +42,4 @@ fn handle_event(event: glfw::WindowEvent, window: &mut glfw::Window) {
         }
         _ => {}
     }
-}
-
-
-fn init_renderer() -> Renderer {
-    Renderer {
-        sprite_program: init_shaders(),
-        sprite: init_sprites(),
-        texture: init_textures()
-    }
-}
-
-
-fn init_shaders() -> rgl::Program {
-    let mut vertex_shader = rgl::Shader::new(rgl::ShaderType::Vertex).unwrap();
-    let source = include_str!("sprite.vert");
-    vertex_shader.set_source(source).unwrap();
-    vertex_shader.compile().unwrap();
-
-    let mut fragment_shader = rgl::Shader::new(rgl::ShaderType::Fragment).unwrap();
-    let source = include_str!("sprite.frag");
-    fragment_shader.set_source(source).unwrap();
-    fragment_shader.compile().unwrap();
-
-    let mut program = rgl::Program::new().unwrap();
-    program.attach_shader(&vertex_shader).unwrap();
-    program.attach_shader(&fragment_shader).unwrap();
-    program.link().unwrap();
-
-    program.set_uniform("texture0", rgl::Uniform::Integer1(0)).unwrap();
-
-    program
-}
-
-
-fn init_sprites() -> rgl::VertexArray {
-    let vertex = (Position(0.0, 0.0), TexCoord(0.0, 0.0), Color(0, 0, 0));
-    let stride = mem::size_of_val(&vertex);
-    let position_offset = &vertex.0 as *const _ as usize - &vertex as *const _ as usize;
-    let texcoord_offset = &vertex.1 as *const _ as usize - &vertex as *const _ as usize;
-    let color_offset = &vertex.2 as *const _ as usize - &vertex as *const _ as usize;
-
-    let mut buffer = rgl::VertexBuffer::new().unwrap();
-    let w = 0.5;
-    let h = 0.5;
-    let vertices = [
-        (Position(-w, h), TexCoord(0.0, 0.0), Color(255, 255, 255)),
-        (Position(-w, -h), TexCoord(0.0, 1.0), Color(255, 255, 255)),
-        (Position(w, -h), TexCoord(1.0, 1.0), Color(255, 255, 255)),
-        (Position(-w, h), TexCoord(0.0, 0.0), Color(255, 255, 255)),
-        (Position(w, -h), TexCoord(1.0, 1.0), Color(255, 255, 255)),
-        (Position(w, h), TexCoord(1.0, 0.0), Color(255, 255, 255))
-    ];
-    buffer.set_data(&vertices, rgl::BufferUsage::StaticDraw).unwrap();
-
-    let mut sprite = rgl::VertexArray::new(buffer).unwrap();
-    sprite.define_attribute(0, 2, rgl::AttributeType::Float, false, stride, position_offset).unwrap();
-    sprite.define_attribute(1, 2, rgl::AttributeType::Float, false, stride, texcoord_offset).unwrap();
-    sprite.define_attribute(2, 3, rgl::AttributeType::UnsignedByte, true, stride, color_offset).unwrap();
-
-    sprite
-}
-
-
-fn init_textures() -> rgl::Texture {
-    let cat_image = image::open("img/cat.png").unwrap().to_rgba();
-    let cat_width = cat_image.width();
-    let cat_height = cat_image.height();
-    let cat_data = cat_image.into_raw();
-
-    let mut texture = rgl::Texture::new().unwrap();
-    texture.set_data(cat_data.as_slice(), cat_width as _, cat_height as _).unwrap();
-
-    texture
-}
-
-
-fn render(glfw: &glfw::Glfw, renderer: &mut Renderer) {
-    let time = glfw.get_time();
-    let l = time.sin() as f32 * 0.1 + 0.2;
-    rgl::clear(l, l, l, 1.).unwrap();
-    renderer.sprite_program.use_program().unwrap();
-    let aspect = 9.0 / 16.0;
-    let transform = rgl::Uniform::Matrix3x2([
-        (time.cos() as f32 * aspect, -time.sin() as f32),
-        (time.sin() as f32 * aspect, time.cos() as f32),
-        ((time * 0.5).cos() as f32 * 0.5 * aspect, (time * 0.5).sin() as f32 * 0.5)
-    ]);
-    renderer.texture.bind(0).unwrap();
-    renderer.sprite_program.set_uniform("transform", transform).unwrap();
-    renderer.sprite.bind().unwrap();
-    rgl::draw(6).unwrap();
 }

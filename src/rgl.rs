@@ -42,8 +42,12 @@ pub struct VertexBuffer {
 }
 
 pub enum AttributeType {
-    UnsignedByte,
+    UByte,
     Float
+}
+
+pub enum Attribute {
+    NUByte4(u8, u8, u8, u8)
 }
 
 pub struct VertexArray {
@@ -271,26 +275,41 @@ impl VertexArray {
     }
 
 
-    pub fn define_attribute(&mut self,
-                            index: u32,
-                            size: i32,
-                            attribute_type: AttributeType,
-                            normalized: bool,
-                            stride: usize,
-                            offset: usize) -> Result<(), GLError>
+    pub fn set_attribute_ptr(&mut self,
+                             index: u32,
+                             size: i32,
+                             attribute_type: AttributeType,
+                             normalized: bool,
+                             stride: usize,
+                             offset: usize) -> Result<(), GLError>
     {
         unsafe { gl::BindVertexArray(self.index); }
         handle_error("BindVertexArray")?;
         unsafe { gl::EnableVertexAttribArray(index); }
         handle_error("EnableVertexAttribArray")?;
         let attribute_type = match attribute_type {
-            AttributeType::UnsignedByte => gl::UNSIGNED_BYTE,
+            AttributeType::UByte => gl::UNSIGNED_BYTE,
             AttributeType::Float => gl::FLOAT
         };
         unsafe { gl::BindBuffer(gl::ARRAY_BUFFER, self.buffer.index); }
         handle_error("BindBuffer")?;
         unsafe { gl::VertexAttribPointer(index, size, attribute_type, normalized as _, stride as _, offset as _); }
         handle_error("VertexAttribPointer")?;
+        Ok(())
+    }
+
+
+    pub fn set_attribute(&mut self, index: u32, value: Attribute) -> Result<(), GLError> {
+        unsafe { gl::BindVertexArray(self.index); }
+        handle_error("BindVertexArray")?;
+        unsafe { gl::DisableVertexAttribArray(index); }
+        handle_error("DisableVertexAttribArray")?;
+        match value {
+            Attribute::NUByte4(v0, v1, v2, v3) => {
+                unsafe { gl::VertexAttrib4Nub(index, v0, v1, v2, v3); }
+                handle_error("VertexAttrib4Nub")?;
+            }
+        }
         Ok(())
     }
 
