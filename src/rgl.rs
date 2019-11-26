@@ -61,11 +61,20 @@ pub struct Texture {
 
 
 fn handle_error(function: &str) -> Result<(), GLError> {
-    if unsafe { gl::GetError() } == gl::NO_ERROR {
+    let error = unsafe { gl::GetError() };
+    if error == gl::NO_ERROR {
         return Ok(());
     }
     while unsafe { gl::GetError() } != gl::NO_ERROR {}
-    Err(GLError { error: format!("{} failed", function) })
+    let error = match error {
+        gl::INVALID_ENUM => "INVALID_ENUM",
+        gl::INVALID_VALUE => "INVALID_VALUE",
+        gl::INVALID_OPERATION => "INVALID_OPERATION",
+        gl::INVALID_FRAMEBUFFER_OPERATION => "INVALID_FRAMEBUFFER_OPERATION",
+        gl::OUT_OF_MEMORY => "OUT_OF_MEMORY",
+        _ => "UNKNOWN"
+    };
+    Err(GLError { error: format!("{} failed ({})", function, error) })
 }
 
 
