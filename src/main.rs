@@ -1,3 +1,14 @@
+use std::{
+    thread,
+    sync::{
+        Arc,
+        atomic::{
+            AtomicBool,
+            Ordering
+        }
+    }
+};
+
 extern crate glfw;
 use glfw::Context;
 
@@ -18,20 +29,32 @@ fn main() {
     let (mut window, events) = glfw.create_window(1280, 720, "CAT NOODLE!", glfw::WindowMode::Windowed).unwrap();
     window.set_key_polling(true);
 
-    gl::load_with(|p| window.get_proc_address(p) as *const _);
     window.make_current();
+    gl::load_with(|p| window.get_proc_address(p) as *const _);
     glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
+    glfw.make_context_current(None);
 
-    let mut renderer = Renderer::new().unwrap();
+    let end_game = Arc::new(AtomicBool::new(false));
+    let end_game_ref = end_game.clone();
+    let mut context = window.render_context();
+    let game_thread = thread::Builder::new().name("Game".to_string()).spawn(move || {
+        context.make_current();
+        let mut renderer = Renderer::new().unwrap();
+        while !end_game_ref.load(Ordering::Relaxed) {
+            renderer.render().unwrap();
+            context.swap_buffers();
+        }
+    }).unwrap();
 
     while !window.should_close() {
-        glfw.poll_events();
+        glfw.wait_events_timeout(0.1);
         for (_, event) in glfw::flush_messages(&events) {
             handle_event(event, &mut window);
         }
-        renderer.render().unwrap();
-        window.swap_buffers();
     }
+
+    end_game.store(true, Ordering::Relaxed);
+    game_thread.join().unwrap();
 }
 
 
