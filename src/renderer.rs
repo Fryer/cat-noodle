@@ -1,34 +1,18 @@
-use std::{
-    error::Error,
-    mem,
-    time
-};
+use std::{error::Error, time};
 
 extern crate image;
 
 use rgl;
 
+mod vertex;
+use vertex::Vertex;
 
-#[repr(C)]
-struct Position(f32, f32);
-#[repr(C)]
-struct TexCoord(f32, f32);
-
-#[repr(C)]
-struct Vertex(Position, TexCoord);
 
 pub struct Renderer {
     start_time: time::Instant,
     program: rgl::Program,
     square: rgl::VertexArray,
     texture: rgl::Texture
-}
-
-
-impl Vertex {
-    pub fn new(x: f32, y: f32, s: f32, t: f32) -> Vertex {
-        Vertex(Position(x, y), TexCoord(s, t))
-    }
 }
 
 
@@ -69,31 +53,19 @@ impl Renderer {
 
 
     fn create_square() -> Result<rgl::VertexArray, rgl::GLError> {
-        let vertex = Vertex::new(0.0, 0.0, 0.0, 0.0);
-        let stride = mem::size_of_val(&vertex);
-        let position_offset = &vertex.0 as *const _ as usize - &vertex as *const _ as usize;
-        let texcoord_offset = &vertex.1 as *const _ as usize - &vertex as *const _ as usize;
-
-        let mut buffer = rgl::VertexBuffer::new()?;
         let w = 0.5;
         let h = 0.5;
         let vertices = [
             Vertex::new(-w, h, 0.0, 0.0), Vertex::new(-w, -h, 0.0, 1.0), Vertex::new(w, -h, 1.0, 1.0),
             Vertex::new(-w, h, 0.0, 0.0), Vertex::new(w, -h, 1.0, 1.0), Vertex::new(w, h, 1.0, 0.0)
         ];
-        buffer.set_data(&vertices, rgl::BufferUsage::StaticDraw)?;
-
-        let mut sprite = rgl::VertexArray::new(buffer)?;
-        sprite.set_attribute_ptr(0, 2, rgl::AttributeType::Float, false, stride, position_offset)?;
-        sprite.set_attribute_ptr(1, 2, rgl::AttributeType::Float, false, stride, texcoord_offset)?;
-        sprite.set_attribute(2, rgl::Attribute::NUByte4(255, 255, 255, 255))?;
-
+        let sprite = vertex::create_array(&vertices, rgl::BufferUsage::StaticDraw)?;
         Ok(sprite)
     }
 
 
     fn create_texture() -> Result<rgl::Texture, Box<dyn Error>> {
-        let cat_image = image::open("img/cat.png")?.to_rgba();
+        let cat_image = image::open("img/ball-cat.png")?.to_rgba();
         let cat_width = cat_image.width();
         let cat_height = cat_image.height();
         let cat_data = cat_image.into_raw();

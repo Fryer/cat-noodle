@@ -52,7 +52,7 @@ pub enum Attribute {
 
 pub struct VertexArray {
     index: GLuint,
-    buffer: VertexBuffer
+    pub buffer: VertexBuffer
 }
 
 pub struct Texture {
