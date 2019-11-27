@@ -7,12 +7,17 @@ use rgl;
 mod vertex;
 use vertex::Vertex;
 
+mod noodle_cat;
+use noodle_cat::NoodleCat;
+
 
 pub struct Renderer {
     start_time: time::Instant,
     program: rgl::Program,
     square: rgl::VertexArray,
-    texture: rgl::Texture
+    texture: rgl::Texture,
+    cat_sprite: rgl::Texture,
+    cat: NoodleCat
 }
 
 
@@ -20,12 +25,16 @@ impl Renderer {
     pub fn new() -> Result<Renderer, Box<dyn Error>> {
         let program = Self::create_program()?;
         let square = Self::create_square()?;
-        let texture = Self::create_texture()?;
+        let texture = Self::load_texture("img/ball-cat.png")?;
+        let cat_sprite = Self::load_texture("img/cat.png")?;
+        let cat = NoodleCat::new()?;
         Ok(Renderer {
             start_time: time::Instant::now(),
             program,
             square,
-            texture
+            texture,
+            cat_sprite,
+            cat
         })
     }
 
@@ -53,25 +62,23 @@ impl Renderer {
 
 
     fn create_square() -> Result<rgl::VertexArray, rgl::GLError> {
-        let w = 0.5;
-        let h = 0.5;
         let vertices = [
-            Vertex::new(-w, h, 0.0, 0.0), Vertex::new(-w, -h, 0.0, 1.0), Vertex::new(w, -h, 1.0, 1.0),
-            Vertex::new(-w, h, 0.0, 0.0), Vertex::new(w, -h, 1.0, 1.0), Vertex::new(w, h, 1.0, 0.0)
+            Vertex::new(-0.5, 0.5, 0.0, 0.0), Vertex::new(-0.5, -0.5, 0.0, 1.0), Vertex::new(0.5, -0.5, 1.0, 1.0),
+            Vertex::new(-0.5, 0.5, 0.0, 0.0), Vertex::new(0.5, -0.5, 1.0, 1.0), Vertex::new(0.5, 0.5, 1.0, 0.0)
         ];
-        let sprite = vertex::create_array(&vertices, rgl::BufferUsage::StaticDraw)?;
-        Ok(sprite)
+        let square = vertex::create_array(&vertices, rgl::BufferUsage::StaticDraw)?;
+        Ok(square)
     }
 
 
-    fn create_texture() -> Result<rgl::Texture, Box<dyn Error>> {
-        let cat_image = image::open("img/ball-cat.png")?.to_rgba();
-        let cat_width = cat_image.width();
-        let cat_height = cat_image.height();
-        let cat_data = cat_image.into_raw();
+    fn load_texture(file: &str) -> Result<rgl::Texture, Box<dyn Error>> {
+        let image = image::open(file)?.to_rgba();
+        let width = image.width();
+        let height = image.height();
+        let data = image.into_raw();
 
         let mut texture = rgl::Texture::new()?;
-        texture.set_data(cat_data.as_slice(), cat_width as _, cat_height as _)?;
+        texture.set_data(data.as_slice(), width as _, height as _)?;
 
         Ok(texture)
     }
@@ -79,24 +86,38 @@ impl Renderer {
 
     pub fn render(&mut self) -> Result<(), rgl::GLError> {
         let time = time::Instant::now().duration_since(self.start_time).as_secs_f64();
+        let zoom = 0.5;
 
         let l = time.sin() as f32 * 0.1 + 0.2;
-        rgl::clear(l, l, l, 1.)?;
+        rgl::clear(l, l, l, 1.0)?;
 
         self.program.use_program()?;
 
-        let aspect = 9.0 / 16.0;
-        let transform = rgl::Uniform::Matrix3x2([
-            (time.cos() as f32 * aspect, -time.sin() as f32),
-            (time.sin() as f32 * aspect, time.cos() as f32),
-            ((time * 0.5).cos() as f32 * 0.5 * aspect, (time * 0.5).sin() as f32 * 0.5)
-        ]);
-
         self.texture.bind(0)?;
-        self.program.set_uniform("transform", transform)?;
+        self.set_transform(
+            zoom,
+            (time * 0.5).cos() as f32, (time * 0.5).sin() as f32,
+            1.0, -time.rem_euclid(std::f64::consts::PI * 2.0) as f32 * 2.0
+        )?;
         self.square.bind()?;
         rgl::draw(6)?;
 
+        self.cat_sprite.bind(0)?;
+        self.set_transform(zoom, 0.0, 0.0, 1.0, 0.0)?;
+        self.cat.render()?;
+
+        Ok(())
+    }
+
+
+    fn set_transform(&mut self, zoom: f32, x: f32, y: f32, scale: f32, angle: f32) -> Result<(), rgl::GLError> {
+        let aspect = 9.0 / 16.0;
+        let transform = rgl::Uniform::Matrix3x2([
+            (angle.cos() * scale * aspect * zoom, -angle.sin() * scale * zoom),
+            (angle.sin() * scale * aspect * zoom, angle.cos() * scale * zoom),
+            (x * aspect * zoom, y * zoom)
+        ]);
+        self.program.set_uniform("transform", transform)?;
         Ok(())
     }
 }
