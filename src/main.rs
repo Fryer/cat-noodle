@@ -3,13 +3,7 @@ use std::{
     ptr,
     ffi::CStr,
     thread,
-    sync::{
-        Arc,
-        atomic::{
-            AtomicBool,
-            Ordering
-        }
-    }
+    sync::{mpsc, Mutex}
 };
 
 extern crate glfw;
@@ -20,12 +14,12 @@ use renderer::Renderer;
 
 
 fn main() {
-    let thread_panicked = Arc::new(AtomicBool::new(false));
-    let thread_panicked_ref = thread_panicked.clone();
+    let (panic_sender, panic_receiver) = mpsc::channel();
+    let panic_sender = Mutex::new(panic_sender);
     let default_panic = panic::take_hook();
     panic::set_hook(Box::new(move |info| {
         default_panic(info);
-        thread_panicked_ref.store(true, Ordering::Relaxed);
+        panic_sender.lock().unwrap().send(()).ok();
     }));
 
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -46,21 +40,20 @@ fn main() {
     glfw.make_context_current(None);
     handle_glfw_error();
 
-    let end_game = Arc::new(AtomicBool::new(false));
-    let end_game_ref = end_game.clone();
+    let (close_sender, close_receiver) = mpsc::channel();
     let mut context = window.render_context();
     let game_thread = thread::Builder::new().name("Game".to_string()).spawn(move || {
         context.make_current();
         handle_glfw_error();
         let mut renderer = Renderer::new().unwrap();
-        while !end_game_ref.load(Ordering::Relaxed) {
+        while close_receiver.try_recv().is_err() {
             renderer.render().unwrap();
             context.swap_buffers();
             handle_glfw_error();
         }
     }).unwrap();
 
-    while !window.should_close() && !thread_panicked.load(Ordering::Relaxed) {
+    while !window.should_close() && panic_receiver.try_recv().is_err() {
         glfw.wait_events_timeout(0.1);
         for (_, event) in glfw::flush_messages(&events) {
             handle_event(event, &mut window);
@@ -68,7 +61,7 @@ fn main() {
         handle_glfw_error();
     }
 
-    end_game.store(true, Ordering::Relaxed);
+    close_sender.send(()).ok();
     game_thread.join().unwrap();
 }
 
