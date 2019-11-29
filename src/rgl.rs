@@ -14,6 +14,13 @@ pub struct GLError {
     error: String
 }
 
+pub enum BlendFactor {
+    SourceAlpha,
+    OneMinusSourceAlpha
+}
+
+pub struct BlendFunction(pub BlendFactor, pub BlendFactor);
+
 pub enum ShaderType {
     Vertex,
     Fragment
@@ -75,6 +82,33 @@ fn handle_error(function: &str) -> Result<(), GLError> {
         _ => "UNKNOWN"
     };
     Err(GLError { error: format!("{} failed ({})", function, error) })
+}
+
+
+pub fn set_blend_function(function: Option<BlendFunction>) -> Result<(), GLError> {
+    fn blend_factor(factor: BlendFactor) -> GLenum {
+        match factor {
+            BlendFactor::SourceAlpha => gl::SRC_ALPHA,
+            BlendFactor::OneMinusSourceAlpha => gl::ONE_MINUS_SRC_ALPHA
+        }
+    }
+
+    match function {
+        Some(function) => {
+            unsafe { gl::Enable(gl::BLEND); }
+            handle_error("Enable")?;
+            let source_factor = blend_factor(function.0);
+            let destination_factor = blend_factor(function.1);
+            unsafe { gl::BlendFunc(source_factor, destination_factor); }
+            handle_error("BlendFunc")?;
+            Ok(())
+        }
+        None => {
+            unsafe { gl::Disable(gl::BLEND); }
+            handle_error("Disable")?;
+            Ok(())
+        }
+    }
 }
 
 

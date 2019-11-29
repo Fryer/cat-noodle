@@ -23,6 +23,11 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new() -> Result<Renderer, Box<dyn Error>> {
+        rgl::set_blend_function(Some(rgl::BlendFunction(
+            rgl::BlendFactor::SourceAlpha,
+            rgl::BlendFactor::OneMinusSourceAlpha
+        )))?;
+
         let program = Self::create_program()?;
         let square = Self::create_square()?;
         let texture = Self::load_texture("img/ball-cat.png")?;
@@ -85,7 +90,7 @@ impl Renderer {
 
 
     pub fn render(&mut self) -> Result<(), rgl::GLError> {
-        let time = time::Instant::now().duration_since(self.start_time).as_secs_f64();
+        let time = self.start_time.elapsed().as_secs_f64();
         let zoom = 0.5;
 
         let l = time.sin() as f32 * 0.1 + 0.2;
