@@ -91,10 +91,15 @@ impl Renderer {
 
     pub fn render(&mut self) -> Result<(), rgl::GLError> {
         let time = self.start_time.elapsed().as_secs_f64();
-        let zoom = 0.5;
+        let zoom = 0.2;
 
-        let l = time.sin() as f32 * 0.1 + 0.2;
-        rgl::clear(l, l, l, 1.0)?;
+        let path: Vec<_> = (0..50).into_iter().map(|x| (
+            (time * 0.7 + x as f64 * 0.07).sin() as f32 * 6.0,
+            (time * 2.3 + x as f64 * 0.23).sin() as f32 * 2.0
+        )).collect();
+        self.cat.update(path.as_slice())?;
+
+        rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
         self.program.use_program()?;
 
@@ -105,7 +110,7 @@ impl Renderer {
             1.0, -time.rem_euclid(std::f64::consts::PI * 2.0) as f32 * 2.0
         )?;
         self.square.bind()?;
-        rgl::draw(6)?;
+        //rgl::draw(6)?;
 
         self.cat_sprite.bind(0)?;
         self.set_transform(zoom, 0.0, 0.0, 1.0, 0.0)?;

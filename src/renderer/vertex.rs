@@ -4,11 +4,14 @@ use rgl;
 
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct Position(f32, f32);
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct TexCoord(f32, f32);
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Vertex(Position, TexCoord);
 
 
