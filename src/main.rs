@@ -25,7 +25,7 @@ fn main() {
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
     glfw.window_hint(glfw::WindowHint::Resizable(false));
-    glfw.window_hint(glfw::WindowHint::ContextVersion(4, 1));
+    glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
     glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
     glfw.window_hint(glfw::WindowHint::OpenGlProfile(glfw::OpenGlProfileHint::Core));
     glfw.window_hint(glfw::WindowHint::DepthBits(Some(0)));
@@ -62,7 +62,7 @@ fn main() {
     }
 
     close_sender.send(()).ok();
-    game_thread.join().unwrap();
+    game_thread.join().ok();
 }
 
 

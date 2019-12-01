@@ -53,10 +53,6 @@ pub enum AttributeType {
     Float
 }
 
-pub enum Attribute {
-    NUByte4(u8, u8, u8, u8)
-}
-
 pub struct VertexArray {
     index: GLuint,
     pub buffer: VertexBuffer
@@ -318,13 +314,13 @@ impl VertexArray {
     }
 
 
-    pub fn set_attribute_ptr(&mut self,
-                             index: u32,
-                             size: i32,
-                             attribute_type: AttributeType,
-                             normalized: bool,
-                             stride: usize,
-                             offset: usize) -> Result<(), GLError>
+    pub fn set_attribute(&mut self,
+                         index: u32,
+                         size: i32,
+                         attribute_type: AttributeType,
+                         normalized: bool,
+                         stride: usize,
+                         offset: usize) -> Result<(), GLError>
     {
         unsafe { gl::BindVertexArray(self.index); }
         handle_error("BindVertexArray")?;
@@ -338,21 +334,6 @@ impl VertexArray {
         handle_error("BindBuffer")?;
         unsafe { gl::VertexAttribPointer(index, size, attribute_type, normalized as _, stride as _, offset as _); }
         handle_error("VertexAttribPointer")?;
-        Ok(())
-    }
-
-
-    pub fn set_attribute(&mut self, index: u32, value: Attribute) -> Result<(), GLError> {
-        unsafe { gl::BindVertexArray(self.index); }
-        handle_error("BindVertexArray")?;
-        unsafe { gl::DisableVertexAttribArray(index); }
-        handle_error("DisableVertexAttribArray")?;
-        match value {
-            Attribute::NUByte4(v0, v1, v2, v3) => {
-                unsafe { gl::VertexAttrib4Nub(index, v0, v1, v2, v3); }
-                handle_error("VertexAttrib4Nub")?;
-            }
-        }
         Ok(())
     }
 
@@ -382,8 +363,6 @@ impl Texture {
         unsafe {
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as _);
             gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::CLAMP_TO_EDGE as _);
-            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::CLAMP_TO_EDGE as _);
         }
         handle_error("TexParameteri")?;
         Ok(Texture { index })

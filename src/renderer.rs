@@ -5,7 +5,6 @@ extern crate image;
 use rgl;
 
 mod vertex;
-use vertex::Vertex;
 
 mod noodle_cat;
 use noodle_cat::NoodleCat;
@@ -14,8 +13,6 @@ use noodle_cat::NoodleCat;
 pub struct Renderer {
     start_time: time::Instant,
     program: rgl::Program,
-    square: rgl::VertexArray,
-    texture: rgl::Texture,
     cat_sprite: rgl::Texture,
     cat: NoodleCat
 }
@@ -29,15 +26,11 @@ impl Renderer {
         )))?;
 
         let program = Self::create_program()?;
-        let square = Self::create_square()?;
-        let texture = Self::load_texture("img/ball-cat.png")?;
         let cat_sprite = Self::load_texture("img/cat.png")?;
         let cat = NoodleCat::new()?;
         Ok(Renderer {
             start_time: time::Instant::now(),
             program,
-            square,
-            texture,
             cat_sprite,
             cat
         })
@@ -66,16 +59,6 @@ impl Renderer {
     }
 
 
-    fn create_square() -> Result<rgl::VertexArray, rgl::GLError> {
-        let vertices = [
-            Vertex::new(-0.5, 0.5, 0.0, 0.0), Vertex::new(-0.5, -0.5, 0.0, 1.0), Vertex::new(0.5, -0.5, 1.0, 1.0),
-            Vertex::new(-0.5, 0.5, 0.0, 0.0), Vertex::new(0.5, -0.5, 1.0, 1.0), Vertex::new(0.5, 0.5, 1.0, 0.0)
-        ];
-        let square = vertex::create_array(&vertices, rgl::BufferUsage::StaticDraw)?;
-        Ok(square)
-    }
-
-
     fn load_texture(file: &str) -> Result<rgl::Texture, Box<dyn Error>> {
         let image = image::open(file)?.to_rgba();
         let width = image.width();
@@ -93,24 +76,15 @@ impl Renderer {
         let time = self.start_time.elapsed().as_secs_f64();
         let zoom = 0.2;
 
-        let path: Vec<_> = (0..50).into_iter().map(|x| (
-            (time * 0.7 + x as f64 * 0.07).sin() as f32 * 6.0,
-            (time * 2.3 + x as f64 * 0.23).sin() as f32 * 2.0
+        let path: Vec<_> = (0..50).map(|x| (
+            (time * 0.8 + x as f64 * 0.08).sin() as f32 * 6.0,
+            (time * 1.6 + x as f64 * 0.16).sin() as f32 * 4.0
         )).collect();
         self.cat.update(path.as_slice())?;
 
         rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
         self.program.use_program()?;
-
-        self.texture.bind(0)?;
-        self.set_transform(
-            zoom,
-            (time * 0.5).cos() as f32, (time * 0.5).sin() as f32,
-            1.0, -time.rem_euclid(std::f64::consts::PI * 2.0) as f32 * 2.0
-        )?;
-        self.square.bind()?;
-        //rgl::draw(6)?;
 
         self.cat_sprite.bind(0)?;
         self.set_transform(zoom, 0.0, 0.0, 1.0, 0.0)?;

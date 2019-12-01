@@ -5,14 +5,16 @@ use rgl;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct Position(f32, f32);
-#[repr(C)]
-#[derive(Clone, Copy)]
-struct TexCoord(f32, f32);
-
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub struct Vertex(Position, TexCoord);
+pub struct Vertex {
+    pub x: f32,
+    pub y: f32,
+    pub s: f32,
+    pub t: f32,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8
+}
 
 
 pub fn create_array(vertices: &[Vertex], usage: rgl::BufferUsage) -> Result<rgl::VertexArray, rgl::GLError> {
@@ -20,9 +22,9 @@ pub fn create_array(vertices: &[Vertex], usage: rgl::BufferUsage) -> Result<rgl:
     buffer.set_data(&vertices, usage)?;
 
     let mut array = rgl::VertexArray::new(buffer)?;
-    array.set_attribute_ptr(0, 2, rgl::AttributeType::Float, false, Vertex::stride(), Vertex::position_offset())?;
-    array.set_attribute_ptr(1, 2, rgl::AttributeType::Float, false, Vertex::stride(), Vertex::tex_coord_offset())?;
-    array.set_attribute(2, rgl::Attribute::NUByte4(255, 255, 255, 255))?;
+    array.set_attribute(0, 2, rgl::AttributeType::Float, false, Vertex::stride(), Vertex::position_offset())?;
+    array.set_attribute(1, 2, rgl::AttributeType::Float, false, Vertex::stride(), Vertex::tex_coord_offset())?;
+    array.set_attribute(2, 4, rgl::AttributeType::UByte, true, Vertex::stride(), Vertex::color_offset())?;
 
     Ok(array)
 }
@@ -30,7 +32,7 @@ pub fn create_array(vertices: &[Vertex], usage: rgl::BufferUsage) -> Result<rgl:
 
 impl Vertex {
     pub fn new(x: f32, y: f32, s: f32, t: f32) -> Vertex {
-        Vertex(Position(x, y), TexCoord(s, t))
+        Vertex { x, y, s, t, r: 255, g: 255, b: 255, a: 255 }
     }
 
 
@@ -41,12 +43,18 @@ impl Vertex {
 
     pub fn position_offset() -> usize {
         let vertex = Vertex::new(0.0, 0.0, 0.0, 0.0);
-        &vertex.0 as *const _ as usize - &vertex as *const _ as usize
+        &vertex.x as *const _ as usize - &vertex as *const _ as usize
     }
 
 
     pub fn tex_coord_offset() -> usize {
         let vertex = Vertex::new(0.0, 0.0, 0.0, 0.0);
-        &vertex.1 as *const _ as usize - &vertex as *const _ as usize
+        &vertex.s as *const _ as usize - &vertex as *const _ as usize
+    }
+
+
+    pub fn color_offset() -> usize {
+        let vertex = Vertex::new(0.0, 0.0, 0.0, 0.0);
+        &vertex.r as *const _ as usize - &vertex as *const _ as usize
     }
 }
