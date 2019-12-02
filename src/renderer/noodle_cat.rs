@@ -39,6 +39,7 @@ impl NoodleCat {
             }
         }
 
+        // Butt.
         let (x, y) = path[0];
         let (mut dx, mut dy) = direction(x, y, path.get(1), (0.5, 0.0));
         vertices.extend([
@@ -50,6 +51,7 @@ impl NoodleCat {
             Vertex::new(x - dy, y + dx, 0.25, 0.0),
         ].into_iter());
 
+        // Body.
         for (n, ((x, y), (x2, y2))) in path.iter().zip(path.iter().skip(1)).enumerate() {
             let (dx2, dy2) = direction(*x2, *y2, path.get(n + 2), (dx, dy));
             vertices.extend([
@@ -64,6 +66,7 @@ impl NoodleCat {
             dy = dy2;
         }
 
+        // Head.
         let (x, y) = *path.last().unwrap();
         vertices.extend([
             Vertex::new(x - dy, y + dx, 0.25, 0.0),
@@ -72,6 +75,28 @@ impl NoodleCat {
             Vertex::new(x - dy, y + dx, 0.25, 0.0),
             Vertex::new(x + dx + dy, y + dy - dx, 0.5, 0.5),
             Vertex::new(x + dx - dy, y + dy + dx, 0.5, 0.0),
+        ].into_iter());
+
+        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
+        
+        // Eye.
+        let eye_x = x + dx * 0.25 - dy * 0.25 * flip;
+        let eye_y = y + dy * 0.25 + dx * 0.25 * flip;
+        let pupil_x = x + dx * 0.375 - dy * 0.25 * flip;
+        let pupil_y = y + dy * 0.375 + dx * 0.25 * flip;
+        vertices.extend([
+            Vertex::new(eye_x - 0.2, eye_y + 0.2, 0.0, 0.0),
+            Vertex::new(eye_x - 0.2, eye_y - 0.2, 0.0, 0.5),
+            Vertex::new(eye_x + 0.2, eye_y - 0.2, 0.5, 0.5),
+            Vertex::new(eye_x - 0.2, eye_y + 0.2, 0.0, 0.0),
+            Vertex::new(eye_x + 0.2, eye_y - 0.2, 0.5, 0.5),
+            Vertex::new(eye_x + 0.2, eye_y + 0.2, 0.5, 0.0),
+            Vertex::new(pupil_x - 0.1, pupil_y + 0.1, 0.625, 0.625),
+            Vertex::new(pupil_x - 0.1, pupil_y - 0.1, 0.625, 0.875),
+            Vertex::new(pupil_x + 0.1, pupil_y - 0.1, 0.875, 0.875),
+            Vertex::new(pupil_x - 0.1, pupil_y + 0.1, 0.625, 0.625),
+            Vertex::new(pupil_x + 0.1, pupil_y - 0.1, 0.875, 0.875),
+            Vertex::new(pupil_x + 0.1, pupil_y + 0.1, 0.875, 0.625)
         ].into_iter());
 
         self.vertex_array.buffer.set_data(vertices.as_slice(), rgl::BufferUsage::StreamDraw)?;
