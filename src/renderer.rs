@@ -97,8 +97,8 @@ impl Renderer {
         let zoom = 0.2;
 
         let path: Vec<_> = (0..50).map(|x| (
-            (time * 0.8 + x as f64 * 0.08).sin() as f32 * 6.0,
-            (time * 1.6 + x as f64 * 0.16).sin() as f32 * 4.0
+            (time * 1.2 + x as f64 * 0.08).sin() as f32 * 4.0,
+            (time * 2.4 + x as f64 * 0.16).sin() as f32 * 2.0
         )).collect();
         self.cat.update(path.as_slice())?;
 

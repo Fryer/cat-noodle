@@ -25,7 +25,7 @@ impl NoodleCat {
 
 
     pub fn update(&mut self, path: &[(f32, f32)]) -> Result<(), rgl::GLError> {
-        let mut vertices: Vec<Vertex> = Vec::with_capacity(path.len() * 6 + 42);
+        let mut vertices: Vec<Vertex> = Vec::with_capacity(path.len() * 6 + 66);
 
         fn direction(x: f32, y: f32, target: Option<&(f32, f32)>, default: (f32, f32)) -> (f32, f32) {
             match target {
@@ -40,7 +40,7 @@ impl NoodleCat {
         }
 
         let (x, y) = *path.last().unwrap();
-        let (mut dx, mut dy) = direction(x, y, path.get(path.len() - 2), (-0.5, 0.0));
+        let (mut dx, mut dy) = direction(x, y, path.get(path.len().wrapping_sub(2)), (-0.5, 0.0));
         dx = -dx;
         dy = -dy;
         let flip = if dx < 0.0 { -1.0 } else { 1.0 };
@@ -59,6 +59,18 @@ impl NoodleCat {
             Vertex::rgb(ear_x + dx * 0.5 + ear_dx, ear_y + dy * 0.5 + ear_dy, 0.375, 0.625, 127, 127, 127)
         ].into_iter());
 
+        // Far front paw.
+        let paw_x = x - dx * 0.4 + dy * flip;
+        let paw_y = y - dy * 0.4 - dx * flip;
+        vertices.extend([
+            Vertex::rgb(paw_x - 0.2, paw_y + 0.2, 0.625, 0.125, 127, 127, 127),
+            Vertex::rgb(paw_x - 0.2, paw_y - 0.2, 0.625, 0.375, 127, 127, 127),
+            Vertex::rgb(paw_x + 0.2, paw_y - 0.2, 0.875, 0.375, 127, 127, 127),
+            Vertex::rgb(paw_x - 0.2, paw_y + 0.2, 0.625, 0.125, 127, 127, 127),
+            Vertex::rgb(paw_x + 0.2, paw_y - 0.2, 0.875, 0.375, 127, 127, 127),
+            Vertex::rgb(paw_x + 0.2, paw_y + 0.2, 0.875, 0.125, 127, 127, 127)
+        ].into_iter());
+
         // Butt.
         let (x, y) = path[0];
         let (mut dx, mut dy) = direction(x, y, path.get(1), (0.5, 0.0));
@@ -69,6 +81,20 @@ impl NoodleCat {
             Vertex::new(x - dx - dy, y - dy + dx, 0.0, 0.0),
             Vertex::new(x + dy, y - dx, 0.25, 0.5),
             Vertex::new(x - dy, y + dx, 0.25, 0.0),
+        ].into_iter());
+
+        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
+
+        // Far back paw.
+        let paw_x = x + dx * 0.4 + dy * flip;
+        let paw_y = y + dy * 0.4 - dx * flip;
+        vertices.extend([
+            Vertex::rgb(paw_x - 0.2, paw_y + 0.2, 0.625, 0.125, 127, 127, 127),
+            Vertex::rgb(paw_x - 0.2, paw_y - 0.2, 0.625, 0.375, 127, 127, 127),
+            Vertex::rgb(paw_x + 0.2, paw_y - 0.2, 0.875, 0.375, 127, 127, 127),
+            Vertex::rgb(paw_x - 0.2, paw_y + 0.2, 0.625, 0.125, 127, 127, 127),
+            Vertex::rgb(paw_x + 0.2, paw_y - 0.2, 0.875, 0.375, 127, 127, 127),
+            Vertex::rgb(paw_x + 0.2, paw_y + 0.2, 0.875, 0.125, 127, 127, 127)
         ].into_iter());
 
         // Body.
@@ -96,6 +122,8 @@ impl NoodleCat {
             Vertex::new(x + dx + dy, y + dy - dx, 0.5, 0.5),
             Vertex::new(x + dx - dy, y + dy + dx, 0.5, 0.0),
         ].into_iter());
+
+        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
         
         // Eye.
         let eye_x = x + dx * 0.25 - dy * 0.25 * flip;
@@ -159,6 +187,34 @@ impl NoodleCat {
             Vertex::new(ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy, 0.125, 0.625),
             Vertex::new(ear_x + dx * 0.5, ear_y + dy * 0.5, 0.375, 0.875),
             Vertex::new(ear_x + dx * 0.5 + ear_dx, ear_y + dy * 0.5 + ear_dy, 0.375, 0.625)
+        ].into_iter());
+
+        // Near front paw.
+        let paw_x = x + dy * flip;
+        let paw_y = y - dx * flip;
+        vertices.extend([
+            Vertex::new(paw_x - 0.2, paw_y + 0.2, 0.625, 0.125),
+            Vertex::new(paw_x - 0.2, paw_y - 0.2, 0.625, 0.375),
+            Vertex::new(paw_x + 0.2, paw_y - 0.2, 0.875, 0.375),
+            Vertex::new(paw_x - 0.2, paw_y + 0.2, 0.625, 0.125),
+            Vertex::new(paw_x + 0.2, paw_y - 0.2, 0.875, 0.375),
+            Vertex::new(paw_x + 0.2, paw_y + 0.2, 0.875, 0.125)
+        ].into_iter());
+
+        let (x, y) = path[0];
+        let (dx, dy) = direction(x, y, path.get(1), (0.5, 0.0));
+        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
+
+        // Near back paw.
+        let paw_x = x + dy * flip;
+        let paw_y = y - dx * flip;
+        vertices.extend([
+            Vertex::new(paw_x - 0.2, paw_y + 0.2, 0.625, 0.125),
+            Vertex::new(paw_x - 0.2, paw_y - 0.2, 0.625, 0.375),
+            Vertex::new(paw_x + 0.2, paw_y - 0.2, 0.875, 0.375),
+            Vertex::new(paw_x - 0.2, paw_y + 0.2, 0.625, 0.125),
+            Vertex::new(paw_x + 0.2, paw_y - 0.2, 0.875, 0.375),
+            Vertex::new(paw_x + 0.2, paw_y + 0.2, 0.875, 0.125)
         ].into_iter());
 
         self.vertex_array.buffer.set_data(vertices.as_slice(), rgl::BufferUsage::StreamDraw)?;
