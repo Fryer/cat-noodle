@@ -36,6 +36,11 @@ impl Vertex {
     }
 
 
+    pub fn rgb(x: f32, y: f32, s: f32, t: f32, r: u8, g: u8, b: u8) -> Vertex {
+        Vertex { x, y, s, t, r, g, b, a: 255 }
+    }
+
+
     pub fn stride() -> usize {
         mem::size_of::<Self>()
     }

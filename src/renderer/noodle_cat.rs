@@ -25,7 +25,7 @@ impl NoodleCat {
 
 
     pub fn update(&mut self, path: &[(f32, f32)]) -> Result<(), rgl::GLError> {
-        let mut vertices: Vec<Vertex> = Vec::with_capacity(path.len() * 6 + 6);
+        let mut vertices: Vec<Vertex> = Vec::with_capacity(path.len() * 6 + 42);
 
         fn direction(x: f32, y: f32, target: Option<&(f32, f32)>, default: (f32, f32)) -> (f32, f32) {
             match target {
@@ -38,6 +38,26 @@ impl NoodleCat {
                 None => default
             }
         }
+
+        let (x, y) = *path.last().unwrap();
+        let (mut dx, mut dy) = direction(x, y, path.get(path.len() - 2), (-0.5, 0.0));
+        dx = -dx;
+        dy = -dy;
+        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
+
+        // Far ear.
+        let ear_x = x - dy * 0.8 * flip;
+        let ear_y = y + dx * 0.8 * flip;
+        let ear_dx = -dy * flip;
+        let ear_dy = dx * flip;
+        vertices.extend([
+            Vertex::rgb(ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy, 0.125, 0.625, 127, 127, 127),
+            Vertex::rgb(ear_x - dx * 0.5, ear_y - dy * 0.5, 0.125, 0.875, 127, 127, 127),
+            Vertex::rgb(ear_x + dx * 0.5, ear_y + dy * 0.5, 0.375, 0.875, 127, 127, 127),
+            Vertex::rgb(ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy, 0.125, 0.625, 127, 127, 127),
+            Vertex::rgb(ear_x + dx * 0.5, ear_y + dy * 0.5, 0.375, 0.875, 127, 127, 127),
+            Vertex::rgb(ear_x + dx * 0.5 + ear_dx, ear_y + dy * 0.5 + ear_dy, 0.375, 0.625, 127, 127, 127)
+        ].into_iter());
 
         // Butt.
         let (x, y) = path[0];
@@ -76,8 +96,6 @@ impl NoodleCat {
             Vertex::new(x + dx + dy, y + dy - dx, 0.5, 0.5),
             Vertex::new(x + dx - dy, y + dy + dx, 0.5, 0.0),
         ].into_iter());
-
-        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
         
         // Eye.
         let eye_x = x + dx * 0.25 - dy * 0.25 * flip;
@@ -85,18 +103,62 @@ impl NoodleCat {
         let pupil_x = x + dx * 0.375 - dy * 0.25 * flip;
         let pupil_y = y + dy * 0.375 + dx * 0.25 * flip;
         vertices.extend([
+            // Eye ball.
             Vertex::new(eye_x - 0.2, eye_y + 0.2, 0.0, 0.0),
             Vertex::new(eye_x - 0.2, eye_y - 0.2, 0.0, 0.5),
             Vertex::new(eye_x + 0.2, eye_y - 0.2, 0.5, 0.5),
             Vertex::new(eye_x - 0.2, eye_y + 0.2, 0.0, 0.0),
             Vertex::new(eye_x + 0.2, eye_y - 0.2, 0.5, 0.5),
             Vertex::new(eye_x + 0.2, eye_y + 0.2, 0.5, 0.0),
+            // Pupil.
             Vertex::new(pupil_x - 0.1, pupil_y + 0.1, 0.625, 0.625),
             Vertex::new(pupil_x - 0.1, pupil_y - 0.1, 0.625, 0.875),
             Vertex::new(pupil_x + 0.1, pupil_y - 0.1, 0.875, 0.875),
             Vertex::new(pupil_x - 0.1, pupil_y + 0.1, 0.625, 0.625),
             Vertex::new(pupil_x + 0.1, pupil_y - 0.1, 0.875, 0.875),
             Vertex::new(pupil_x + 0.1, pupil_y + 0.1, 0.875, 0.625)
+        ].into_iter());
+
+        // Mouth.
+        let mouth_x = x + dx;
+        let mouth_y = y + dy;
+        let mouth_d = 1.0 / 5.0f32.sqrt();
+        let mouth_dx = -mouth_d * dx * 2.0 + mouth_d * dy * flip;
+        let mouth_dy = -mouth_d * dy * 2.0 - mouth_d * dx * flip;
+        let mouth_x2 = mouth_x + mouth_dx * 0.5;
+        let mouth_y2 = mouth_y + mouth_dy * 0.5;
+        vertices.extend([
+            // Line.
+            Vertex::new(mouth_x - mouth_dy * 0.05, mouth_y + mouth_dx * 0.05, 0.75, 0.625),
+            Vertex::new(mouth_x + mouth_dy * 0.05, mouth_y - mouth_dx * 0.05, 0.75, 0.875),
+            Vertex::new(mouth_x2 + mouth_dy * 0.05, mouth_y2 - mouth_dx * 0.05, 0.75, 0.875),
+            Vertex::new(mouth_x - mouth_dy * 0.05, mouth_y + mouth_dx * 0.05, 0.75, 0.625),
+            Vertex::new(mouth_x2 + mouth_dy * 0.05, mouth_y2 - mouth_dx * 0.05, 0.75, 0.875),
+            Vertex::new(mouth_x2 - mouth_dy * 0.05, mouth_y2 + mouth_dx * 0.05, 0.75, 0.625),
+            // Cap.
+            Vertex::new(mouth_x2 - mouth_dy * 0.05, mouth_y2 + mouth_dx * 0.05, 0.75, 0.625),
+            Vertex::new(mouth_x2 + mouth_dy * 0.05, mouth_y2 - mouth_dx * 0.05, 0.75, 0.875),
+            Vertex::new(mouth_x2 + mouth_dx * 0.05 + mouth_dy * 0.05,
+                        mouth_y2 + mouth_dy * 0.05 - mouth_dx * 0.05, 0.875, 0.875),
+            Vertex::new(mouth_x2 - mouth_dy * 0.05, mouth_y2 + mouth_dx * 0.05, 0.75, 0.625),
+            Vertex::new(mouth_x2 + mouth_dx * 0.05 + mouth_dy * 0.05,
+                        mouth_y2 + mouth_dy * 0.05 - mouth_dx * 0.05, 0.875, 0.875),
+            Vertex::new(mouth_x2 + mouth_dx * 0.05 - mouth_dy * 0.05,
+                        mouth_y2 + mouth_dy * 0.05 + mouth_dx * 0.05, 0.875, 0.625)
+        ].into_iter());
+
+        // Near ear.
+        let ear_x = x - dx * 0.4 - dy * 0.8 * flip;
+        let ear_y = y - dy * 0.4 + dx * 0.8 * flip;
+        let ear_dx = -dy * flip;
+        let ear_dy = dx * flip;
+        vertices.extend([
+            Vertex::new(ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy, 0.125, 0.625),
+            Vertex::new(ear_x - dx * 0.5, ear_y - dy * 0.5, 0.125, 0.875),
+            Vertex::new(ear_x + dx * 0.5, ear_y + dy * 0.5, 0.375, 0.875),
+            Vertex::new(ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy, 0.125, 0.625),
+            Vertex::new(ear_x + dx * 0.5, ear_y + dy * 0.5, 0.375, 0.875),
+            Vertex::new(ear_x + dx * 0.5 + ear_dx, ear_y + dy * 0.5 + ear_dy, 0.375, 0.625)
         ].into_iter());
 
         self.vertex_array.buffer.set_data(vertices.as_slice(), rgl::BufferUsage::StreamDraw)?;
