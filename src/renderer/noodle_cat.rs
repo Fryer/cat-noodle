@@ -27,7 +27,7 @@ impl NoodleCat {
     pub fn update(&mut self, path: &[(f32, f32)], tail: &[(f32, f32)]) -> Result<(), rgl::GLError> {
         let mut vertices: Vec<Vertex> = Vec::with_capacity((path.len() + tail.len() + 11) * 6);
 
-        fn direction(x: f32, y: f32, target: Option<&(f32, f32)>, default: (f32, f32)) -> (f32, f32) {
+        fn direction(x: f32, y: f32, target: Option<(f32, f32)>, default: (f32, f32)) -> (f32, f32) {
             match target {
                 Some((x2, y2)) => {
                     let (dx, dy) = (x2 - x, y2 - y);
@@ -40,7 +40,7 @@ impl NoodleCat {
         }
 
         let (x, y) = *path.last().unwrap();
-        let (mut dx, mut dy) = direction(x, y, path.get(path.len().wrapping_sub(2)), (-0.5, 0.0));
+        let (mut dx, mut dy) = direction(x, y, path.get(path.len().wrapping_sub(2)).copied(), (-0.5, 0.0));
         dx = -dx;
         dy = -dy;
         let flip = if dx < 0.0 { -1.0 } else { 1.0 };
@@ -72,7 +72,7 @@ impl NoodleCat {
         ].into_iter());
 
         let (x, y) = path[0];
-        let (mut dx, mut dy) = direction(x, y, path.get(1), (0.5, 0.0));
+        let (mut dx, mut dy) = direction(x, y, path.get(1).copied(), (0.5, 0.0));
         let flip = if dx < 0.0 { -1.0 } else { 1.0 };
 
         // Far back paw.
@@ -99,9 +99,9 @@ impl NoodleCat {
 
         // Tail.
         let (tail_x, tail_y) = tail[0];
-        let (mut tail_dx, mut tail_dy) = direction(tail_x, tail_y, tail.get(1), (0.5, 0.0));
-        for (n, ((x, y), (x2, y2))) in tail.iter().zip(tail.iter().skip(1)).enumerate() {
-            let (tail_dx2, tail_dy2) = direction(*x2, *y2, tail.get(n + 2), (tail_dx, tail_dy));
+        let (mut tail_dx, mut tail_dy) = direction(tail_x, tail_y, tail.get(1).copied(), (0.5, 0.0));
+        for (n, ((x, y), (x2, y2))) in tail.iter().copied().zip(tail.iter().copied().skip(1)).enumerate() {
+            let (tail_dx2, tail_dy2) = direction(x2, y2, tail.get(n + 2).copied(), (tail_dx, tail_dy));
             // TODO: Offset the tail using its own root direction.
             let (x, y, x2, y2) = (x - dx * 0.8, y - dy * 0.8, x2 - dx * 0.8, y2 - dy * 0.8);
             let (dx, dy) = (tail_dx * 0.4, tail_dy * 0.4);
@@ -132,8 +132,8 @@ impl NoodleCat {
         ].into_iter());
 
         // Body.
-        for (n, ((x, y), (x2, y2))) in path.iter().zip(path.iter().skip(1)).enumerate() {
-            let (dx2, dy2) = direction(*x2, *y2, path.get(n + 2), (dx, dy));
+        for (n, ((x, y), (x2, y2))) in path.iter().copied().zip(path.iter().copied().skip(1)).enumerate() {
+            let (dx2, dy2) = direction(x2, y2, path.get(n + 2).copied(), (dx, dy));
             vertices.extend([
                 Vertex::new(x - dy, y + dx, 0.25, 0.0),
                 Vertex::new(x + dy, y - dx, 0.25, 0.5),
@@ -236,7 +236,7 @@ impl NoodleCat {
         ].into_iter());
 
         let (x, y) = path[0];
-        let (dx, dy) = direction(x, y, path.get(1), (0.5, 0.0));
+        let (dx, dy) = direction(x, y, path.get(1).copied(), (0.5, 0.0));
         let flip = if dx < 0.0 { -1.0 } else { 1.0 };
 
         // Near back paw.
