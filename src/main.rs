@@ -9,8 +9,8 @@ use std::{
 extern crate glfw;
 use glfw::Context;
 
-mod renderer;
-use renderer::Renderer;
+mod game;
+use game::Game;
 
 
 fn main() {
@@ -20,6 +20,7 @@ fn main() {
     panic::set_hook(Box::new(move |info| {
         default_panic(info);
         panic_sender.lock().unwrap().send(()).ok();
+        unsafe { glfw::ffi::glfwPostEmptyEvent(); }
     }));
 
     let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
@@ -40,29 +41,28 @@ fn main() {
     glfw.make_context_current(None);
     handle_glfw_error();
 
-    let (close_sender, close_receiver) = mpsc::channel();
+    let (event_sender, event_receiver) = mpsc::channel();
     let mut context = window.render_context();
     let game_thread = thread::Builder::new().name("Game".to_string()).spawn(move || {
         context.make_current();
         handle_glfw_error();
-        let mut renderer = Renderer::new().unwrap();
-        while close_receiver.try_recv().is_err() {
-            renderer.render().unwrap();
+        let mut game = Game::new(event_receiver).unwrap();
+        while game.update().unwrap() {
             context.swap_buffers();
             handle_glfw_error();
         }
     }).unwrap();
 
     while !window.should_close() && panic_receiver.try_recv().is_err() {
-        glfw.wait_events_timeout(0.1);
+        glfw.wait_events();
         for (_, event) in glfw::flush_messages(&events) {
-            handle_event(event, &mut window);
+            handle_event(event, &mut window, &event_sender);
         }
         handle_glfw_error();
     }
 
-    close_sender.send(()).ok();
-    game_thread.join().ok();
+    event_sender.send(game::input::Event::Close).ok();
+    game_thread.join().unwrap();
 }
 
 
@@ -76,10 +76,16 @@ fn handle_glfw_error() {
 }
 
 
-fn handle_event(event: glfw::WindowEvent, window: &mut glfw::Window) {
+fn handle_event(event: glfw::WindowEvent, window: &mut glfw::Window, sender: &mpsc::Sender<game::input::Event>) {
     match event {
         glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
-            window.set_should_close(true)
+            window.set_should_close(true);
+        }
+        glfw::WindowEvent::Key(key, _, glfw::Action::Press, _) => {
+            sender.send(game::input::Event::Key(glfw::Action::Press, key)).ok();
+        }
+        glfw::WindowEvent::Key(key, _, glfw::Action::Release, _) => {
+            sender.send(game::input::Event::Key(glfw::Action::Release, key)).ok();
         }
         _ => {}
     }
