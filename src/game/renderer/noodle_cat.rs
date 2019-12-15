@@ -24,7 +24,11 @@ impl NoodleCat {
     }
 
 
-    pub fn update(&mut self, path: &[(f32, f32)], tail: &[(f32, f32)]) -> Result<(), rgl::GLError> {
+    pub fn update<P, T>(&mut self, path: P, tail: T) -> Result<(), rgl::GLError>
+    where
+        P: ExactSizeIterator<Item = (f32, f32)> + Clone,
+        T: ExactSizeIterator<Item = (f32, f32)> + Clone
+    {
         let mut vertices: Vec<Vertex> = Vec::with_capacity((path.len() + tail.len() + 11) * 6);
 
         fn direction(x: f32, y: f32, target: Option<(f32, f32)>, default: (f32, f32)) -> (f32, f32) {
@@ -39,8 +43,8 @@ impl NoodleCat {
             }
         }
 
-        let (x, y) = *path.last().unwrap();
-        let (mut dx, mut dy) = direction(x, y, path.get(path.len().wrapping_sub(2)).copied(), (-0.5, 0.0));
+        let (x, y) = path.clone().last().unwrap();
+        let (mut dx, mut dy) = direction(x, y, path.clone().nth(path.len().wrapping_sub(2)), (-0.5, 0.0));
         dx = -dx;
         dy = -dy;
         let flip = if dx < 0.0 { -1.0 } else { 1.0 };
@@ -71,8 +75,8 @@ impl NoodleCat {
             Vertex::rgb(paw_x + 0.2, paw_y + 0.2, 0.875, 0.125, 127, 127, 127)
         ].into_iter());
 
-        let (x, y) = path[0];
-        let (mut dx, mut dy) = direction(x, y, path.get(1).copied(), (0.5, 0.0));
+        let (x, y) = path.clone().next().unwrap();
+        let (mut dx, mut dy) = direction(x, y, path.clone().nth(1), (0.5, 0.0));
         let flip = if dx < 0.0 { -1.0 } else { 1.0 };
 
         // Far back paw.
@@ -98,10 +102,10 @@ impl NoodleCat {
         ].into_iter());
 
         // Tail.
-        let (tail_x, tail_y) = tail[0];
-        let (mut tail_dx, mut tail_dy) = direction(tail_x, tail_y, tail.get(1).copied(), (0.5, 0.0));
-        for (n, ((x, y), (x2, y2))) in tail.iter().copied().zip(tail.iter().copied().skip(1)).enumerate() {
-            let (tail_dx2, tail_dy2) = direction(x2, y2, tail.get(n + 2).copied(), (tail_dx, tail_dy));
+        let (tail_x, tail_y) = tail.clone().next().unwrap();
+        let (mut tail_dx, mut tail_dy) = direction(tail_x, tail_y, tail.clone().nth(1), (0.5, 0.0));
+        for (n, ((x, y), (x2, y2))) in tail.clone().zip(tail.clone().skip(1)).enumerate() {
+            let (tail_dx2, tail_dy2) = direction(x2, y2, tail.clone().nth(n + 2), (tail_dx, tail_dy));
             // TODO: Offset the tail using its own root direction.
             let (x, y, x2, y2) = (x - dx * 0.8, y - dy * 0.8, x2 - dx * 0.8, y2 - dy * 0.8);
             let (dx, dy) = (tail_dx * 0.4, tail_dy * 0.4);
@@ -119,7 +123,7 @@ impl NoodleCat {
         }
 
         // Tail cap.
-        let (tail_x, tail_y) = *tail.last().unwrap();
+        let (tail_x, tail_y) = tail.clone().last().unwrap();
         let (tail_x, tail_y) = (tail_x - dx * 0.8, tail_y - dy * 0.8);
         let (tail_dx, tail_dy) = (tail_dx * 0.4, tail_dy * 0.4);
         vertices.extend([
@@ -132,8 +136,8 @@ impl NoodleCat {
         ].into_iter());
 
         // Body.
-        for (n, ((x, y), (x2, y2))) in path.iter().copied().zip(path.iter().copied().skip(1)).enumerate() {
-            let (dx2, dy2) = direction(x2, y2, path.get(n + 2).copied(), (dx, dy));
+        for (n, ((x, y), (x2, y2))) in path.clone().zip(path.clone().skip(1)).enumerate() {
+            let (dx2, dy2) = direction(x2, y2, path.clone().nth(n + 2), (dx, dy));
             vertices.extend([
                 Vertex::new(x - dy, y + dx, 0.25, 0.0),
                 Vertex::new(x + dy, y - dx, 0.25, 0.5),
@@ -147,7 +151,7 @@ impl NoodleCat {
         }
 
         // Head.
-        let (x, y) = *path.last().unwrap();
+        let (x, y) = path.clone().last().unwrap();
         vertices.extend([
             Vertex::new(x - dy, y + dx, 0.25, 0.0),
             Vertex::new(x + dy, y - dx, 0.25, 0.5),
@@ -235,8 +239,8 @@ impl NoodleCat {
             Vertex::new(paw_x + 0.2, paw_y + 0.2, 0.875, 0.125)
         ].into_iter());
 
-        let (x, y) = path[0];
-        let (dx, dy) = direction(x, y, path.get(1).copied(), (0.5, 0.0));
+        let (x, y) = path.clone().next().unwrap();
+        let (dx, dy) = direction(x, y, path.clone().nth(1), (0.5, 0.0));
         let flip = if dx < 0.0 { -1.0 } else { 1.0 };
 
         // Near back paw.

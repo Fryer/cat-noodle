@@ -96,15 +96,15 @@ impl Renderer {
         let time = self.start_time.elapsed().as_secs_f64();
         let zoom = 0.2;
 
-        let path: Vec<_> = (0..30).map(|x| (
+        let path = (0..30).map(|x| (
             (time * 1.5 + x as f64 * 0.1).cos() as f32 * 4.0,
             (time * 1.5 + x as f64 * 0.1).sin() as f32 * -4.0
-        )).collect();
-        let tail: Vec<_> = (0..10).map(|x| (
+        ));
+        let tail = (0..10).map(|x| (
             (time * 1.5 - x as f64 * 0.1).cos() as f32 * 4.0,
             (time * 1.5 - x as f64 * 0.1).sin() as f32 * -4.0
-        )).collect();
-        self.cat.update(path.as_slice(), tail.as_slice())?;
+        ));
+        self.cat.update(path, tail)?;
 
         rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
