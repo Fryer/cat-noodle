@@ -29,7 +29,7 @@ impl Game {
 
 
     pub fn update(&mut self) -> Result<bool, Box<dyn Error>> {
-        if let Ok(event) = self.event_receiver.try_recv() {
+        while let Ok(event) = self.event_receiver.try_recv() {
             match event {
                 input::Event::Close => {
                     println!("close");
