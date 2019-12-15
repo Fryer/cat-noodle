@@ -92,7 +92,7 @@ impl Renderer {
     }
 
 
-    pub fn render(&mut self) -> Result<(), rgl::GLError> {
+    pub fn render(&mut self) -> Result<(), Box<dyn Error>> {
         let time = self.start_time.elapsed().as_secs_f64();
         let zoom = 0.2;
 
