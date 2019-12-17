@@ -61,7 +61,7 @@ fn main() {
         handle_glfw_error();
     }
 
-    event_sender.send(game::input::Event::Close).ok();
+    event_sender.send(game::Event::Close).ok();
     game_thread.join().unwrap();
 }
 
@@ -76,16 +76,16 @@ fn handle_glfw_error() {
 }
 
 
-fn handle_event(event: glfw::WindowEvent, window: &mut glfw::Window, sender: &mpsc::Sender<game::input::Event>) {
+fn handle_event(event: glfw::WindowEvent, window: &mut glfw::Window, sender: &mpsc::Sender<game::Event>) {
     match event {
         glfw::WindowEvent::Key(glfw::Key::Escape, _, glfw::Action::Press, _) => {
             window.set_should_close(true);
         }
         glfw::WindowEvent::Key(key, _, glfw::Action::Press, _) => {
-            sender.send(game::input::Event::Key(glfw::Action::Press, key)).ok();
+            sender.send(game::Event::Key(glfw::Action::Press, key)).ok();
         }
         glfw::WindowEvent::Key(key, _, glfw::Action::Release, _) => {
-            sender.send(game::input::Event::Key(glfw::Action::Release, key)).ok();
+            sender.send(game::Event::Key(glfw::Action::Release, key)).ok();
         }
         _ => {}
     }

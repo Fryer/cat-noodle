@@ -92,19 +92,33 @@ impl Renderer {
     }
 
 
-    pub fn render(&mut self) -> Result<(), Box<dyn Error>> {
-        let time = self.start_time.elapsed().as_secs_f64();
+    pub fn render(&mut self, state: &super::State) -> Result<(), Box<dyn Error>> {
+        let _time = self.start_time.elapsed().as_secs_f64();
         let zoom = 0.2;
 
-        let path = (0..30).map(|x| (
-            (time * 1.5 + x as f64 * 0.1).cos() as f32 * 4.0,
-            (time * 1.5 + x as f64 * 0.1).sin() as f32 * -4.0
-        ));
-        let tail = (0..10).map(|x| (
-            (time * 1.5 - x as f64 * 0.1).cos() as f32 * 4.0,
-            (time * 1.5 - x as f64 * 0.1).sin() as f32 * -4.0
-        ));
-        self.cat.update(path, tail)?;
+        let cat = &state.cat;
+        let mindiff = std::f32::EPSILON * 1000.0;
+        let last = *cat.path.back().unwrap();
+        let diff = (cat.position.0 - last.0, cat.position.1 - last.1);
+        let diff_len = diff.0.hypot(diff.1);
+        if diff_len > mindiff {
+            let pos_norm = (last.0 + diff.0 / diff_len * 0.1, last.1 + diff.1 / diff_len * 0.1);
+            let path = cat.path.iter().copied().skip(1).chain(std::iter::once(pos_norm));
+            let path = cat.path.iter().copied().zip(path).map(|(p, next)| (
+                p.0 + (next.0 - p.0) * 10.0 * diff_len,
+                p.1 + (next.1 - p.1) * 10.0 * diff_len
+            )).collect::<Vec<_>>();
+            let tail = cat.tail.iter().copied();
+            let tail = cat.tail.iter().copied().skip(1).zip(tail).map(|(p, next)| (
+                p.0 + (next.0 - p.0) * 10.0 * diff_len,
+                p.1 + (next.1 - p.1) * 10.0 * diff_len
+            ));
+            let tail = std::iter::once(path[0]).chain(tail).collect::<Vec<_>>();
+            self.cat.update(path.iter().copied(), tail.iter().copied())?;
+        }
+        else {
+            self.cat.update(state.cat.path.iter().copied(), state.cat.tail.iter().copied())?;
+        }
 
         rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
