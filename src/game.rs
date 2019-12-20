@@ -49,11 +49,11 @@ pub struct Game {
 impl Game {
     pub fn new(event_receiver: mpsc::Receiver<Event>) -> Result<Game, Box<dyn Error>> {
         let path: VecDeque<(f32, f32)> = (0..180).map(|x| (
-            x as f32 * 0.1 - 20.0,
+            x as f32 * 0.1 - 18.0,
             0.0
         )).collect();
         let tail: VecDeque<(f32, f32)> = (0..20).map(|x| (
-            x as f32 * -0.1 - 20.0,
+            x as f32 * -0.1 - 18.0,
             0.0
         )).collect();
         

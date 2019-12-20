@@ -12,5 +12,4 @@ gl = "0.14.0"
 image = "0.22.3"
 
 [lib]
-name = "rgl"
-path = "src/rgl.rs"
+name="lib"

@@ -1,6 +1,7 @@
 use std::mem;
 
-use rgl;
+use lib::rgl;
+use lib::math as m;
 
 
 #[repr(C)]
@@ -14,6 +15,12 @@ pub struct Vertex {
     pub g: u8,
     pub b: u8,
     pub a: u8
+}
+
+
+pub trait Position {
+    fn x(&self) -> f32;
+    fn y(&self) -> f32;
 }
 
 
@@ -31,13 +38,21 @@ pub fn create_array(vertices: &[Vertex], usage: rgl::BufferUsage) -> Result<rgl:
 
 
 impl Vertex {
-    pub fn new(x: f32, y: f32, s: f32, t: f32) -> Vertex {
-        Vertex { x, y, s, t, r: 255, g: 255, b: 255, a: 255 }
+    pub fn new<P: Position, T: Position>(position: P, tex_coord: T) -> Vertex {
+        Vertex {
+            x: position.x(), y: position.y(),
+            s: tex_coord.x(), t: tex_coord.y(),
+            r: 255, g: 255, b: 255, a: 255
+        }
     }
 
 
-    pub fn rgb(x: f32, y: f32, s: f32, t: f32, r: u8, g: u8, b: u8) -> Vertex {
-        Vertex { x, y, s, t, r, g, b, a: 255 }
+    pub fn rgb<P: Position, T: Position>(position: P, tex_coord: T, r: u8, g: u8, b: u8) -> Vertex {
+        Vertex {
+            x: position.x(), y: position.y(),
+            s: tex_coord.x(), t: tex_coord.y(),
+            r, g, b, a: 255
+        }
     }
 
 
@@ -47,19 +62,43 @@ impl Vertex {
 
 
     pub fn position_offset() -> usize {
-        let vertex = Vertex::new(0.0, 0.0, 0.0, 0.0);
+        let vertex = Vertex::new((0.0, 0.0), (0.0, 0.0));
         &vertex.x as *const _ as usize - &vertex as *const _ as usize
     }
 
 
     pub fn tex_coord_offset() -> usize {
-        let vertex = Vertex::new(0.0, 0.0, 0.0, 0.0);
+        let vertex = Vertex::new((0.0, 0.0), (0.0, 0.0));
         &vertex.s as *const _ as usize - &vertex as *const _ as usize
     }
 
 
     pub fn color_offset() -> usize {
-        let vertex = Vertex::new(0.0, 0.0, 0.0, 0.0);
+        let vertex = Vertex::new((0.0, 0.0), (0.0, 0.0));
         &vertex.r as *const _ as usize - &vertex as *const _ as usize
+    }
+}
+
+
+impl Position for (f32, f32) {
+    fn x(&self) -> f32 {
+        self.0
+    }
+
+
+    fn y(&self) -> f32 {
+        self.1
+    }
+}
+
+
+impl Position for m::Vec2 {
+    fn x(&self) -> f32 {
+        self.x
+    }
+
+
+    fn y(&self) -> f32 {
+        self.y
     }
 }

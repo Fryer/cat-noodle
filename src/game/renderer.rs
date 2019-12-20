@@ -2,7 +2,7 @@ use std::{error::Error, time};
 
 extern crate image;
 
-use rgl;
+use lib::rgl;
 
 mod vertex;
 
