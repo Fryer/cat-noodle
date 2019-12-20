@@ -97,22 +97,18 @@ impl Renderer {
         let zoom = 0.2;
 
         let cat = &state.cat;
-        let mindiff = std::f32::EPSILON * 1000.0;
         let last = *cat.path.back().unwrap();
-        let diff = (cat.position.0 - last.0, cat.position.1 - last.1);
-        let diff_len = diff.0.hypot(diff.1);
-        if diff_len > mindiff {
-            let pos_norm = (last.0 + diff.0 / diff_len * 0.1, last.1 + diff.1 / diff_len * 0.1);
-            let path = cat.path.iter().copied().skip(1).chain(std::iter::once(pos_norm));
-            let path = cat.path.iter().copied().zip(path).map(|(p, next)| (
-                p.0 + (next.0 - p.0) * 10.0 * diff_len,
-                p.1 + (next.1 - p.1) * 10.0 * diff_len
-            )).collect::<Vec<_>>();
+        let diff = cat.position - last;
+        let diff_len = diff.length();
+        if diff_len > std::f32::EPSILON * 1000.0 {
+            let pos_normal = last + diff.normalized() * 0.1;
+            let path = cat.path.iter().copied().skip(1).chain(std::iter::once(pos_normal));
+            let path = cat.path.iter().copied().zip(path)
+                .map(|(p, next)| p + (next - p) * 10.0 * diff_len)
+                .collect::<Vec<_>>();
             let tail = cat.tail.iter().copied();
-            let tail = cat.tail.iter().copied().skip(1).zip(tail).map(|(p, next)| (
-                p.0 + (next.0 - p.0) * 10.0 * diff_len,
-                p.1 + (next.1 - p.1) * 10.0 * diff_len
-            ));
+            let tail = cat.tail.iter().copied().skip(1).zip(tail)
+                .map(|(p, next)| p + (next - p) * 10.0 * diff_len);
             let tail = std::iter::once(path[0]).chain(tail).collect::<Vec<_>>();
             self.cat.update(path.iter().copied(), tail.iter().copied())?;
         }

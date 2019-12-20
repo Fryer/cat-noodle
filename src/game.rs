@@ -5,11 +5,15 @@ use std::{
     collections::VecDeque
 };
 
+use lib::math::{Vec2, vec2};
+
 mod renderer;
 use renderer::Renderer;
 
 mod state {
     use std::collections::VecDeque;
+
+    use lib::math::Vec2;
     
     
     pub struct Input {
@@ -19,10 +23,10 @@ mod state {
     }
 
     pub struct Cat {
-        pub position: (f32, f32),
-        pub direction: (f32, f32),
-        pub path: VecDeque<(f32, f32)>,
-        pub tail: VecDeque<(f32, f32)>
+        pub position: Vec2,
+        pub direction: Vec2,
+        pub path: VecDeque<Vec2>,
+        pub tail: VecDeque<Vec2>
     }
 
     pub struct State {
@@ -48,11 +52,11 @@ pub struct Game {
 
 impl Game {
     pub fn new(event_receiver: mpsc::Receiver<Event>) -> Result<Game, Box<dyn Error>> {
-        let path: VecDeque<(f32, f32)> = (0..180).map(|x| (
+        let path: VecDeque<_> = (0..180).map(|x| vec2(
             x as f32 * 0.1 - 18.0,
             0.0
         )).collect();
-        let tail: VecDeque<(f32, f32)> = (0..20).map(|x| (
+        let tail: VecDeque<_> = (0..20).map(|x| vec2(
             x as f32 * -0.1 - 18.0,
             0.0
         )).collect();
@@ -65,7 +69,7 @@ impl Game {
             },
             cat: state::Cat {
                 position: *path.back().unwrap(),
-                direction: (1.0, 0.0),
+                direction: vec2(1.0, 0.0),
                 path,
                 tail
             }
@@ -119,40 +123,29 @@ impl Game {
 
         let mut moving = input.forward;
 
-        let turn_x = (delta_time * 3.0).cos();
-        let turn_y = (delta_time * 3.0).sin();
         match (input.left, input.right) {
             (true, false) => {
-                cat.direction.0 = cat.direction.0 * turn_x - cat.direction.1 * turn_y;
-                cat.direction.1 = cat.direction.0 * turn_y + cat.direction.1 * turn_x;
+                let turn = Vec2::from_angle(delta_time * 3.0);
+                cat.direction = cat.direction.rotated(turn).normalized();
                 moving = true;
             }
             (false, true) => {
-                cat.direction.0 = cat.direction.0 * turn_x + cat.direction.1 * turn_y;
-                cat.direction.1 = -cat.direction.0 * turn_y + cat.direction.1 * turn_x;
+                let turn = Vec2::from_angle(-delta_time * 3.0);
+                cat.direction = cat.direction.rotated(turn).normalized();
                 moving = true;
             }
             _ => {}
         }
 
-        let direction_len = cat.direction.0.hypot(cat.direction.1);
-        cat.direction.0 /= direction_len;
-        cat.direction.1 /= direction_len;
-
         if moving {
-            cat.position.0 += cat.direction.0 * 4.0 * delta_time;
-            cat.position.1 += cat.direction.1 * 4.0 * delta_time;
+            cat.position += cat.direction * 4.0 * delta_time;
         }
 
         let last = *cat.path.back().unwrap();
-        let diff = (cat.position.0 - last.0, cat.position.1 - last.1);
-        let diff_len = diff.0.hypot(diff.1);
-        if diff_len > 0.1 {
+        let diff = cat.position - last;
+        if diff.length() > 0.1 {
             cat.path.pop_front();
-            cat.path.push_back((
-                last.0 + diff.0 * 0.1 / diff_len,
-                last.1 + diff.1 * 0.1 / diff_len
-            ));
+            cat.path.push_back(last + diff.normalized() * 0.1);
             cat.tail.pop_back();
             cat.tail.push_front(*cat.path.front().unwrap());
         }

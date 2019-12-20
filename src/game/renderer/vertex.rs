@@ -1,7 +1,7 @@
 use std::mem;
 
 use lib::rgl;
-use lib::math as m;
+use lib::math::Vec2;
 
 
 #[repr(C)]
@@ -57,7 +57,7 @@ impl Vertex {
 
 
     pub fn stride() -> usize {
-        mem::size_of::<Self>()
+        mem::size_of::<Vertex>()
     }
 
 
@@ -92,7 +92,7 @@ impl Position for (f32, f32) {
 }
 
 
-impl Position for m::Vec2 {
+impl Position for Vec2 {
     fn x(&self) -> f32 {
         self.x
     }

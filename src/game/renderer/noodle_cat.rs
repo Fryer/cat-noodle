@@ -1,4 +1,5 @@
 use lib::rgl;
+use lib::math::{Vec2, vec2};
 
 use super::vertex::{self, Vertex};
 
@@ -22,233 +23,211 @@ impl NoodleCat {
 
     pub fn update<P, T>(&mut self, path: P, tail: T) -> Result<(), rgl::GLError>
         where
-            P: ExactSizeIterator<Item = (f32, f32)> + Clone,
-            T: ExactSizeIterator<Item = (f32, f32)> + Clone
+            P: ExactSizeIterator<Item = Vec2> + Clone,
+            T: ExactSizeIterator<Item = Vec2> + Clone
     {
         let mut vertices: Vec<Vertex> = Vec::with_capacity((path.len() + tail.len() + 11) * 6);
 
-        fn direction(x: f32, y: f32, target: Option<(f32, f32)>, default: (f32, f32)) -> (f32, f32) {
+        fn direction(p: Vec2, target: Option<Vec2>, default: Vec2) -> Vec2 {
             match target {
-                Some((x2, y2)) => {
-                    let (dx, dy) = (x2 - x, y2 - y);
-                    let d = dx.hypot(dy);
-                    if d == 0.0 { default }
-                    else { (0.5 * dx / d, 0.5 * dy / d) }
+                Some(t) => {
+                    let d = t - p;
+                    if d.length() < std::f32::EPSILON * 1000.0 { default }
+                    else { 0.5 * d.normalized() }
                 }
                 None => default
             }
         }
 
-        let (x, y) = path.clone().last().unwrap();
-        let (mut dx, mut dy) = direction(x, y, path.clone().nth(path.len().wrapping_sub(2)), (-0.5, 0.0));
-        dx = -dx;
-        dy = -dy;
-        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
+        let p = path.clone().last().unwrap();
+        let d = -direction(p, path.clone().nth(path.len().wrapping_sub(2)), vec2(-0.5, 0.0));
+        let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
 
         // Far ear.
-        let ear_x = x - dy * 0.8 * flip;
-        let ear_y = y + dx * 0.8 * flip;
-        let ear_dx = -dy * flip;
-        let ear_dy = dx * flip;
+        let ear_p = p + vec2(0.0, 0.8 * flip).rotated(d);
+        let ear_d = vec2(0.0, flip).rotated(d);
         vertices.extend([
-            Vertex::rgb((ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy), (0.125, 0.625), 127, 127, 127),
-            Vertex::rgb((ear_x - dx * 0.5, ear_y - dy * 0.5), (0.125, 0.875), 127, 127, 127),
-            Vertex::rgb((ear_x + dx * 0.5, ear_y + dy * 0.5), (0.375, 0.875), 127, 127, 127),
-            Vertex::rgb((ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy), (0.125, 0.625), 127, 127, 127),
-            Vertex::rgb((ear_x + dx * 0.5, ear_y + dy * 0.5), (0.375, 0.875), 127, 127, 127),
-            Vertex::rgb((ear_x + dx * 0.5 + ear_dx, ear_y + dy * 0.5 + ear_dy), (0.375, 0.625), 127, 127, 127)
+            Vertex::rgb(ear_p - d * 0.5 + ear_d, (0.125, 0.625), 127, 127, 127),
+            Vertex::rgb(ear_p - d * 0.5, (0.125, 0.875), 127, 127, 127),
+            Vertex::rgb(ear_p + d * 0.5, (0.375, 0.875), 127, 127, 127),
+            Vertex::rgb(ear_p - d * 0.5 + ear_d, (0.125, 0.625), 127, 127, 127),
+            Vertex::rgb(ear_p + d * 0.5, (0.375, 0.875), 127, 127, 127),
+            Vertex::rgb(ear_p + d * 0.5 + ear_d, (0.375, 0.625), 127, 127, 127)
         ].into_iter());
 
         // Far front paw.
-        let paw_x = x - dx * 0.4 + dy * flip;
-        let paw_y = y - dy * 0.4 - dx * flip;
+        let paw_p = p + vec2(-0.4, -flip).rotated(d);
         vertices.extend([
-            Vertex::rgb((paw_x - 0.2, paw_y + 0.2), (0.625, 0.125), 127, 127, 127),
-            Vertex::rgb((paw_x - 0.2, paw_y - 0.2), (0.625, 0.375), 127, 127, 127),
-            Vertex::rgb((paw_x + 0.2, paw_y - 0.2), (0.875, 0.375), 127, 127, 127),
-            Vertex::rgb((paw_x - 0.2, paw_y + 0.2), (0.625, 0.125), 127, 127, 127),
-            Vertex::rgb((paw_x + 0.2, paw_y - 0.2), (0.875, 0.375), 127, 127, 127),
-            Vertex::rgb((paw_x + 0.2, paw_y + 0.2), (0.875, 0.125), 127, 127, 127)
+            Vertex::rgb(paw_p - vec2(-0.2, 0.2), (0.625, 0.125), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(-0.2, -0.2), (0.625, 0.375), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(0.2, -0.2), (0.875, 0.375), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(-0.2, 0.2), (0.625, 0.125), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(0.2, -0.2), (0.875, 0.375), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(0.2, 0.2), (0.875, 0.125), 127, 127, 127)
         ].into_iter());
 
-        let (x, y) = path.clone().next().unwrap();
-        let (mut dx, mut dy) = direction(x, y, path.clone().nth(1), (0.5, 0.0));
-        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
+        let p = path.clone().next().unwrap();
+        let mut d = direction(p, path.clone().nth(1), vec2(0.5, 0.0));
+        let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
 
         // Far back paw.
-        let paw_x = x + dx * 0.4 + dy * flip;
-        let paw_y = y + dy * 0.4 - dx * flip;
+        let paw_p = p + vec2(0.4, -flip).rotated(d);
         vertices.extend([
-            Vertex::rgb((paw_x - 0.2, paw_y + 0.2), (0.625, 0.125), 127, 127, 127),
-            Vertex::rgb((paw_x - 0.2, paw_y - 0.2), (0.625, 0.375), 127, 127, 127),
-            Vertex::rgb((paw_x + 0.2, paw_y - 0.2), (0.875, 0.375), 127, 127, 127),
-            Vertex::rgb((paw_x - 0.2, paw_y + 0.2), (0.625, 0.125), 127, 127, 127),
-            Vertex::rgb((paw_x + 0.2, paw_y - 0.2), (0.875, 0.375), 127, 127, 127),
-            Vertex::rgb((paw_x + 0.2, paw_y + 0.2), (0.875, 0.125), 127, 127, 127)
+            Vertex::rgb(paw_p - vec2(-0.2, 0.2), (0.625, 0.125), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(-0.2, -0.2), (0.625, 0.375), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(0.2, -0.2), (0.875, 0.375), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(-0.2, 0.2), (0.625, 0.125), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(0.2, -0.2), (0.875, 0.375), 127, 127, 127),
+            Vertex::rgb(paw_p - vec2(0.2, 0.2), (0.875, 0.125), 127, 127, 127)
         ].into_iter());
 
         // Butt.
         vertices.extend([
-            Vertex::new((x - dx - dy, y - dy + dx), (0.0, 0.0)),
-            Vertex::new((x - dx + dy, y - dy - dx), (0.0, 0.5)),
-            Vertex::new((x + dy, y - dx), (0.25, 0.5)),
-            Vertex::new((x - dx - dy, y - dy + dx), (0.0, 0.0)),
-            Vertex::new((x + dy, y - dx), (0.25, 0.5)),
-            Vertex::new((x - dy, y + dx), (0.25, 0.0))
+            Vertex::new(p + vec2(-1.0, 1.0).rotated(d), (0.0, 0.0)),
+            Vertex::new(p + vec2(-1.0, -1.0).rotated(d), (0.0, 0.5)),
+            Vertex::new(p + vec2(0.0, -1.0).rotated(d), (0.25, 0.5)),
+            Vertex::new(p + vec2(-1.0, 1.0).rotated(d), (0.0, 0.0)),
+            Vertex::new(p + vec2(0.0, -1.0).rotated(d), (0.25, 0.5)),
+            Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.25, 0.0))
         ].into_iter());
 
         // Tail.
-        let (tail_x, tail_y) = tail.clone().next().unwrap();
-        let (mut tail_dx, mut tail_dy) = direction(tail_x, tail_y, tail.clone().nth(1), (0.5, 0.0));
-        for (n, ((x, y), (x2, y2))) in tail.clone().zip(tail.clone().skip(1)).enumerate() {
-            let (tail_dx2, tail_dy2) = direction(x2, y2, tail.clone().nth(n + 2), (tail_dx, tail_dy));
+        let tail_p = tail.clone().next().unwrap();
+        let mut tail_d = direction(tail_p, tail.clone().nth(1), vec2(0.5, 0.0));
+        for (n, (p, p2)) in tail.clone().zip(tail.clone().skip(1)).enumerate() {
+            let tail_d2 = direction(p2, tail.clone().nth(n + 2), tail_d);
             // TODO: Offset the tail using its own root direction.
-            let (x, y, x2, y2) = (x - dx * 0.8, y - dy * 0.8, x2 - dx * 0.8, y2 - dy * 0.8);
-            let (dx, dy) = (tail_dx * 0.4, tail_dy * 0.4);
-            let (dx2, dy2) = (tail_dx2 * 0.4, tail_dy2 * 0.4);
+            let p = p - d * 0.8;
+            let p2 = p2 - d * 0.8;
+            let d = tail_d * 0.4;
+            let d2 = tail_d2 * 0.4;
             vertices.extend([
-                Vertex::new((x - dy, y + dx), (0.75, 0.125)),
-                Vertex::new((x + dy, y - dx), (0.75, 0.375)),
-                Vertex::new((x2 + dy2, y2 - dx2), (0.75, 0.375)),
-                Vertex::new((x - dy, y + dx), (0.75, 0.125)),
-                Vertex::new((x2 + dy2, y2 - dx2), (0.75, 0.375)),
-                Vertex::new((x2 - dy2, y2 + dx2), (0.75, 0.125))
+                Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.75, 0.125)),
+                Vertex::new(p + vec2(0.0, -1.0).rotated(d), (0.75, 0.375)),
+                Vertex::new(p2 + vec2(0.0, -1.0).rotated(d2), (0.75, 0.375)),
+                Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.75, 0.125)),
+                Vertex::new(p2 + vec2(0.0, -1.0).rotated(d2), (0.75, 0.375)),
+                Vertex::new(p2 + vec2(0.0, 1.0).rotated(d2), (0.75, 0.125))
             ].into_iter());
-            tail_dx = tail_dx2;
-            tail_dy = tail_dy2;
+            tail_d = tail_d2;
         }
 
         // Tail cap.
-        let (tail_x, tail_y) = tail.clone().last().unwrap();
-        let (tail_x, tail_y) = (tail_x - dx * 0.8, tail_y - dy * 0.8);
-        let (tail_dx, tail_dy) = (tail_dx * 0.4, tail_dy * 0.4);
+        let tail_p = tail.clone().last().unwrap() - d * 0.8;
+        let tail_d = tail_d * 0.4;
         vertices.extend([
-            Vertex::new((tail_x - tail_dy, tail_y + tail_dx), (0.75, 0.125)),
-            Vertex::new((tail_x + tail_dy, tail_y - tail_dx), (0.75, 0.375)),
-            Vertex::new((tail_x + tail_dx + tail_dy, tail_y + tail_dy - tail_dx), (0.875, 0.375)),
-            Vertex::new((tail_x - tail_dy, tail_y + tail_dx), (0.75, 0.125)),
-            Vertex::new((tail_x + tail_dx + tail_dy, tail_y + tail_dy - tail_dx), (0.875, 0.375)),
-            Vertex::new((tail_x + tail_dx - tail_dy, tail_y + tail_dy + tail_dx), (0.875, 0.125))
+            Vertex::new(tail_p + vec2(0.0, 1.0).rotated(tail_d), (0.75, 0.125)),
+            Vertex::new(tail_p + vec2(0.0, -1.0).rotated(tail_d), (0.75, 0.375)),
+            Vertex::new(tail_p + vec2(1.0, -1.0).rotated(tail_d), (0.875, 0.375)),
+            Vertex::new(tail_p + vec2(0.0, 1.0).rotated(tail_d), (0.75, 0.125)),
+            Vertex::new(tail_p + vec2(1.0, -1.0).rotated(tail_d), (0.875, 0.375)),
+            Vertex::new(tail_p + vec2(1.0, 1.0).rotated(tail_d), (0.875, 0.125))
         ].into_iter());
 
         // Body.
-        for (n, ((x, y), (x2, y2))) in path.clone().zip(path.clone().skip(1)).enumerate() {
-            let (dx2, dy2) = direction(x2, y2, path.clone().nth(n + 2), (dx, dy));
+        for (n, (p, p2)) in path.clone().zip(path.clone().skip(1)).enumerate() {
+            let d2 = direction(p, path.clone().nth(n + 2), d);
             vertices.extend([
-                Vertex::new((x - dy, y + dx), (0.25, 0.0)),
-                Vertex::new((x + dy, y - dx), (0.25, 0.5)),
-                Vertex::new((x2 + dy2, y2 - dx2), (0.25, 0.5)),
-                Vertex::new((x - dy, y + dx), (0.25, 0.0)),
-                Vertex::new((x2 + dy2, y2 - dx2), (0.25, 0.5)),
-                Vertex::new((x2 - dy2, y2 + dx2), (0.25, 0.0))
+                Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.25, 0.0)),
+                Vertex::new(p + vec2(0.0, -1.0).rotated(d), (0.25, 0.5)),
+                Vertex::new(p2 + vec2(0.0, -1.0).rotated(d2), (0.25, 0.5)),
+                Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.25, 0.0)),
+                Vertex::new(p2 + vec2(0.0, -1.0).rotated(d2), (0.25, 0.5)),
+                Vertex::new(p2 + vec2(0.0, 1.0).rotated(d2), (0.25, 0.0))
             ].into_iter());
-            dx = dx2;
-            dy = dy2;
+            d = d2;
         }
 
         // Head.
-        let (x, y) = path.clone().last().unwrap();
+        let p = path.clone().last().unwrap();
         vertices.extend([
-            Vertex::new((x - dy, y + dx), (0.25, 0.0)),
-            Vertex::new((x + dy, y - dx), (0.25, 0.5)),
-            Vertex::new((x + dx + dy, y + dy - dx), (0.5, 0.5)),
-            Vertex::new((x - dy, y + dx), (0.25, 0.0)),
-            Vertex::new((x + dx + dy, y + dy - dx), (0.5, 0.5)),
-            Vertex::new((x + dx - dy, y + dy + dx), (0.5, 0.0))
+            Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.25, 0.0)),
+            Vertex::new(p + vec2(0.0, -1.0).rotated(d), (0.25, 0.5)),
+            Vertex::new(p + vec2(1.0, -1.0).rotated(d), (0.5, 0.5)),
+            Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.25, 0.0)),
+            Vertex::new(p + vec2(1.0, -1.0).rotated(d), (0.5, 0.5)),
+            Vertex::new(p + vec2(1.0, 1.0).rotated(d), (0.5, 0.0))
         ].into_iter());
 
-        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
+        let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
 
         // Eye.
-        let eye_x = x + dx * 0.25 - dy * 0.25 * flip;
-        let eye_y = y + dy * 0.25 + dx * 0.25 * flip;
-        let pupil_x = x + dx * 0.375 - dy * 0.25 * flip;
-        let pupil_y = y + dy * 0.375 + dx * 0.25 * flip;
+        let eye_p = p + vec2(0.25, 0.25 * flip).rotated(d);
+        let pupil_p = p + vec2(0.375, 0.25 * flip).rotated(d);
         vertices.extend([
             // Eye ball.
-            Vertex::new((eye_x - 0.2, eye_y + 0.2), (0.0, 0.0)),
-            Vertex::new((eye_x - 0.2, eye_y - 0.2), (0.0, 0.5)),
-            Vertex::new((eye_x + 0.2, eye_y - 0.2), (0.5, 0.5)),
-            Vertex::new((eye_x - 0.2, eye_y + 0.2), (0.0, 0.0)),
-            Vertex::new((eye_x + 0.2, eye_y - 0.2), (0.5, 0.5)),
-            Vertex::new((eye_x + 0.2, eye_y + 0.2), (0.5, 0.0)),
+            Vertex::new(eye_p + vec2(-0.2, 0.2), (0.0, 0.0)),
+            Vertex::new(eye_p + vec2(-0.2, -0.2), (0.0, 0.5)),
+            Vertex::new(eye_p + vec2(0.2, -0.2), (0.5, 0.5)),
+            Vertex::new(eye_p + vec2(-0.2, 0.2), (0.0, 0.0)),
+            Vertex::new(eye_p + vec2(0.2, -0.2), (0.5, 0.5)),
+            Vertex::new(eye_p + vec2(0.2, 0.2), (0.5, 0.0)),
             // Pupil.
-            Vertex::new((pupil_x - 0.1, pupil_y + 0.1), (0.625, 0.625)),
-            Vertex::new((pupil_x - 0.1, pupil_y - 0.1), (0.625, 0.875)),
-            Vertex::new((pupil_x + 0.1, pupil_y - 0.1), (0.875, 0.875)),
-            Vertex::new((pupil_x - 0.1, pupil_y + 0.1), (0.625, 0.625)),
-            Vertex::new((pupil_x + 0.1, pupil_y - 0.1), (0.875, 0.875)),
-            Vertex::new((pupil_x + 0.1, pupil_y + 0.1), (0.875, 0.625))
+            Vertex::new(pupil_p + vec2(-0.1, 0.1), (0.625, 0.625)),
+            Vertex::new(pupil_p + vec2(-0.1, -0.1), (0.625, 0.875)),
+            Vertex::new(pupil_p + vec2(0.1, -0.1), (0.875, 0.875)),
+            Vertex::new(pupil_p + vec2(-0.1, 0.1), (0.625, 0.625)),
+            Vertex::new(pupil_p + vec2(0.1, -0.1), (0.875, 0.875)),
+            Vertex::new(pupil_p + vec2(0.1, 0.1), (0.875, 0.625))
         ].into_iter());
 
         // Mouth.
-        let mouth_x = x + dx;
-        let mouth_y = y + dy;
-        let mouth_d = 1.0 / 5.0f32.sqrt();
-        let mouth_dx = -mouth_d * dx * 2.0 + mouth_d * dy * flip;
-        let mouth_dy = -mouth_d * dy * 2.0 - mouth_d * dx * flip;
-        let mouth_x2 = mouth_x + mouth_dx * 0.5;
-        let mouth_y2 = mouth_y + mouth_dy * 0.5;
+        let mouth_p = p + d;
+        let mouth_d = vec2(-2.0, -flip).normalized().rotated(d);
+        let mouth_p2 = mouth_p + mouth_d * 0.5;
         vertices.extend([
             // Line.
-            Vertex::new((mouth_x - mouth_dy * 0.05, mouth_y + mouth_dx * 0.05), (0.75, 0.625)),
-            Vertex::new((mouth_x + mouth_dy * 0.05, mouth_y - mouth_dx * 0.05), (0.75, 0.875)),
-            Vertex::new((mouth_x2 + mouth_dy * 0.05, mouth_y2 - mouth_dx * 0.05), (0.75, 0.875)),
-            Vertex::new((mouth_x - mouth_dy * 0.05, mouth_y + mouth_dx * 0.05), (0.75, 0.625)),
-            Vertex::new((mouth_x2 + mouth_dy * 0.05, mouth_y2 - mouth_dx * 0.05), (0.75, 0.875)),
-            Vertex::new((mouth_x2 - mouth_dy * 0.05, mouth_y2 + mouth_dx * 0.05), (0.75, 0.625)),
+            Vertex::new(mouth_p + vec2(0.0, 0.05).rotated(mouth_d), (0.75, 0.625)),
+            Vertex::new(mouth_p + vec2(0.0, -0.05).rotated(mouth_d), (0.75, 0.875)),
+            Vertex::new(mouth_p2 + vec2(0.0, -0.05).rotated(mouth_d), (0.75, 0.875)),
+            Vertex::new(mouth_p + vec2(0.0, 0.05).rotated(mouth_d), (0.75, 0.625)),
+            Vertex::new(mouth_p2 + vec2(0.0, -0.05).rotated(mouth_d), (0.75, 0.875)),
+            Vertex::new(mouth_p2 + vec2(0.0, 0.05).rotated(mouth_d), (0.75, 0.625)),
             // Cap.
-            Vertex::new((mouth_x2 - mouth_dy * 0.05, mouth_y2 + mouth_dx * 0.05), (0.75, 0.625)),
-            Vertex::new((mouth_x2 + mouth_dy * 0.05, mouth_y2 - mouth_dx * 0.05), (0.75, 0.875)),
-            Vertex::new((mouth_x2 + mouth_dx * 0.05 + mouth_dy * 0.05,
-                         mouth_y2 + mouth_dy * 0.05 - mouth_dx * 0.05), (0.875, 0.875)),
-            Vertex::new((mouth_x2 - mouth_dy * 0.05, mouth_y2 + mouth_dx * 0.05), (0.75, 0.625)),
-            Vertex::new((mouth_x2 + mouth_dx * 0.05 + mouth_dy * 0.05,
-                         mouth_y2 + mouth_dy * 0.05 - mouth_dx * 0.05), (0.875, 0.875)),
-            Vertex::new((mouth_x2 + mouth_dx * 0.05 - mouth_dy * 0.05,
-                         mouth_y2 + mouth_dy * 0.05 + mouth_dx * 0.05), (0.875, 0.625))
+            Vertex::new(mouth_p2 + vec2(0.0, 0.05).rotated(mouth_d), (0.75, 0.625)),
+            Vertex::new(mouth_p2 + vec2(0.0, -0.05).rotated(mouth_d), (0.75, 0.875)),
+            Vertex::new(mouth_p2 + vec2(0.05, -0.05).rotated(mouth_d), (0.875, 0.875)),
+            Vertex::new(mouth_p2 + vec2(0.0, 0.05).rotated(mouth_d), (0.75, 0.625)),
+            Vertex::new(mouth_p2 + vec2(0.05, -0.05).rotated(mouth_d), (0.875, 0.875)),
+            Vertex::new(mouth_p2 + vec2(0.05, 0.05).rotated(mouth_d), (0.875, 0.625))
         ].into_iter());
 
         // Near ear.
-        let ear_x = x - dx * 0.4 - dy * 0.8 * flip;
-        let ear_y = y - dy * 0.4 + dx * 0.8 * flip;
-        let ear_dx = -dy * flip;
-        let ear_dy = dx * flip;
+        let ear_p = p + vec2(-0.4, 0.8 * flip).rotated(d);
+        let ear_d = vec2(0.0, flip).rotated(d);
         vertices.extend([
-            Vertex::new((ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy), (0.125, 0.625)),
-            Vertex::new((ear_x - dx * 0.5, ear_y - dy * 0.5), (0.125, 0.875)),
-            Vertex::new((ear_x + dx * 0.5, ear_y + dy * 0.5), (0.375, 0.875)),
-            Vertex::new((ear_x - dx * 0.5 + ear_dx, ear_y - dy * 0.5 + ear_dy), (0.125, 0.625)),
-            Vertex::new((ear_x + dx * 0.5, ear_y + dy * 0.5), (0.375, 0.875)),
-            Vertex::new((ear_x + dx * 0.5 + ear_dx, ear_y + dy * 0.5 + ear_dy), (0.375, 0.625))
+            Vertex::new(ear_p - d * 0.5 + ear_d, (0.125, 0.625)),
+            Vertex::new(ear_p - d * 0.5, (0.125, 0.875)),
+            Vertex::new(ear_p + d * 0.5, (0.375, 0.875)),
+            Vertex::new(ear_p - d * 0.5 + ear_d, (0.125, 0.625)),
+            Vertex::new(ear_p + d * 0.5, (0.375, 0.875)),
+            Vertex::new(ear_p + d * 0.5 + ear_d, (0.375, 0.625))
         ].into_iter());
 
         // Near front paw.
-        let paw_x = x + dy * flip;
-        let paw_y = y - dx * flip;
+        let paw_p = p + vec2(0.0, -flip).rotated(d);
         vertices.extend([
-            Vertex::new((paw_x - 0.2, paw_y + 0.2), (0.625, 0.125)),
-            Vertex::new((paw_x - 0.2, paw_y - 0.2), (0.625, 0.375)),
-            Vertex::new((paw_x + 0.2, paw_y - 0.2), (0.875, 0.375)),
-            Vertex::new((paw_x - 0.2, paw_y + 0.2), (0.625, 0.125)),
-            Vertex::new((paw_x + 0.2, paw_y - 0.2), (0.875, 0.375)),
-            Vertex::new((paw_x + 0.2, paw_y + 0.2), (0.875, 0.125))
+            Vertex::new(paw_p - vec2(-0.2, 0.2), (0.625, 0.125)),
+            Vertex::new(paw_p - vec2(-0.2, -0.2), (0.625, 0.375)),
+            Vertex::new(paw_p - vec2(0.2, -0.2), (0.875, 0.375)),
+            Vertex::new(paw_p - vec2(-0.2, 0.2), (0.625, 0.125)),
+            Vertex::new(paw_p - vec2(0.2, -0.2), (0.875, 0.375)),
+            Vertex::new(paw_p - vec2(0.2, 0.2), (0.875, 0.125))
         ].into_iter());
 
-        let (x, y) = path.clone().next().unwrap();
-        let (dx, dy) = direction(x, y, path.clone().nth(1), (0.5, 0.0));
-        let flip = if dx < 0.0 { -1.0 } else { 1.0 };
+        let p = path.clone().next().unwrap();
+        let d = direction(p, path.clone().nth(1), vec2(0.5, 0.0));
+        let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
 
         // Near back paw.
-        let paw_x = x + dy * flip;
-        let paw_y = y - dx * flip;
+        let paw_p = p + vec2(0.0, -flip).rotated(d);
         vertices.extend([
-            Vertex::new((paw_x - 0.2, paw_y + 0.2), (0.625, 0.125)),
-            Vertex::new((paw_x - 0.2, paw_y - 0.2), (0.625, 0.375)),
-            Vertex::new((paw_x + 0.2, paw_y - 0.2), (0.875, 0.375)),
-            Vertex::new((paw_x - 0.2, paw_y + 0.2), (0.625, 0.125)),
-            Vertex::new((paw_x + 0.2, paw_y - 0.2), (0.875, 0.375)),
-            Vertex::new((paw_x + 0.2, paw_y + 0.2), (0.875, 0.125))
+            Vertex::new(paw_p - vec2(-0.2, 0.2), (0.625, 0.125)),
+            Vertex::new(paw_p - vec2(-0.2, -0.2), (0.625, 0.375)),
+            Vertex::new(paw_p - vec2(0.2, -0.2), (0.875, 0.375)),
+            Vertex::new(paw_p - vec2(-0.2, 0.2), (0.625, 0.125)),
+            Vertex::new(paw_p - vec2(0.2, -0.2), (0.875, 0.375)),
+            Vertex::new(paw_p - vec2(0.2, 0.2), (0.875, 0.125))
         ].into_iter());
 
         self.vertex_array.buffer.set_data(vertices.as_slice(), rgl::BufferUsage::StreamDraw)?;
