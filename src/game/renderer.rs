@@ -6,13 +6,20 @@ use lib::rgl;
 
 mod vertex;
 
+mod ground;
+use ground::Ground;
+
 mod noodle_cat;
 use noodle_cat::NoodleCat;
+
+use super::state;
 
 
 pub struct Renderer {
     start_time: time::Instant,
     program: rgl::Program,
+    ground_sprite: rgl::Texture,
+    ground: Ground,
     cat_sprite: rgl::Texture,
     cat: NoodleCat
 }
@@ -26,11 +33,18 @@ impl Renderer {
         )))?;
 
         let program = Self::create_program()?;
+
+        let ground_sprite = Self::load_texture("img/ground.png")?;
+        let ground = Ground::new()?;
+
         let cat_sprite = Self::load_masked_texture("img/cat_rgb.png", "img/cat_a.png")?;
         let cat = NoodleCat::new()?;
+
         Ok(Renderer {
             start_time: time::Instant::now(),
             program,
+            ground_sprite,
+            ground,
             cat_sprite,
             cat
         })
@@ -59,7 +73,6 @@ impl Renderer {
     }
 
 
-    #[allow(dead_code)]
     fn load_texture(file: &str) -> Result<rgl::Texture, Box<dyn Error>> {
         let image = image::open(file)?.to_rgba();
         let width = image.width();
@@ -92,9 +105,15 @@ impl Renderer {
     }
 
 
-    pub fn render(&mut self, state: &super::State) -> Result<(), Box<dyn Error>> {
+    pub fn render(&mut self, state: &mut state::State) -> Result<(), Box<dyn Error>> {
         let _time = self.start_time.elapsed().as_secs_f64();
         let zoom = 0.2;
+
+        let ground = &mut state.ground;
+        if ground.dirty.contains(state::DirtyFlags::RENDER) {
+            self.ground.update(ground.boxes.iter().copied())?;
+            ground.dirty -= state::DirtyFlags::RENDER;
+        }
 
         let cat = &state.cat;
         let last = *cat.path.back().unwrap();
@@ -119,10 +138,16 @@ impl Renderer {
         rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
         self.program.use_program()?;
+        self.set_transform(zoom, 0.0, 0.0, 1.0, 0.0)?;
 
         self.cat_sprite.bind(0)?;
-        self.set_transform(zoom, 0.0, 0.0, 1.0, 0.0)?;
         self.cat.render()?;
+
+        self.ground_sprite.bind(0)?;
+        self.ground.render()?;
+
+        self.cat_sprite.bind(0)?;
+        self.cat.render_near()?;
 
         Ok(())
     }

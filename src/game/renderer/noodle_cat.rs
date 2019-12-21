@@ -6,7 +6,9 @@ use super::vertex::{self, Vertex};
 
 pub struct NoodleCat {
     vertex_array: rgl::VertexArray,
-    vertices: usize
+    vertices: usize,
+    near_start: usize,
+    near_count: usize
 }
 
 
@@ -16,7 +18,9 @@ impl NoodleCat {
 
         Ok(NoodleCat {
             vertex_array,
-            vertices: 0
+            vertices: 0,
+            near_start: 0,
+            near_count: 0
         })
     }
 
@@ -192,6 +196,8 @@ impl NoodleCat {
             Vertex::new(mouth_p2 + vec2(0.05, 0.05).rotated(mouth_d), (0.875, 0.625))
         ].into_iter());
 
+        let near_start = vertices.len();
+
         // Near ear.
         let ear_p = p + vec2(-0.4, 0.8 * flip).rotated(d);
         let ear_d = vec2(0.0, flip).rotated(d);
@@ -231,14 +237,23 @@ impl NoodleCat {
         ].into_iter());
 
         self.vertex_array.buffer.set_data(vertices.as_slice(), rgl::BufferUsage::StreamDraw)?;
-        self.vertices = vertices.len();
+        self.vertices = near_start;
+        self.near_start = near_start;
+        self.near_count = vertices.len() - near_start;
         Ok(())
     }
 
 
     pub fn render(&self) -> Result<(), rgl::GLError> {
         self.vertex_array.bind()?;
-        rgl::draw(self.vertices as _)?;
+        rgl::draw(0, self.vertices as _)?;
+        Ok(())
+    }
+
+
+    pub fn render_near(&self) -> Result<(), rgl::GLError> {
+        self.vertex_array.bind()?;
+        rgl::draw(self.near_start as _, self.near_count as _)?;
         Ok(())
     }
 }

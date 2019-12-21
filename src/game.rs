@@ -14,12 +14,26 @@ mod state {
     use std::collections::VecDeque;
 
     use lib::math::Vec2;
-    
+
+
+    bitflags! {
+        pub struct DirtyFlags: u8 {
+            const NONE = 0;
+            const RENDER = 0b1;
+            const PHYSICS = 0b10;
+            const ALL = Self::RENDER.bits | Self::PHYSICS.bits;
+        }
+    }
     
     pub struct Input {
         pub left: bool,
         pub right: bool,
         pub forward: bool
+    }
+
+    pub struct Ground {
+        pub boxes: Vec<Vec2>,
+        pub dirty: DirtyFlags
     }
 
     pub struct Cat {
@@ -31,6 +45,7 @@ mod state {
 
     pub struct State {
         pub input: Input,
+        pub ground: Ground,
         pub cat: Cat
     }
 }
@@ -52,6 +67,27 @@ pub struct Game {
 
 impl Game {
     pub fn new(event_receiver: mpsc::Receiver<Event>) -> Result<Game, Box<dyn Error>> {
+        let boxes: Vec<_> = include_str!("level.txt").chars()
+            .scan(vec2(-20.0, 10.0), |p, c| {
+                match c {
+                    ' ' => {
+                        p.x += 1.0;
+                        Some(None)
+                    }
+                    'X' => {
+                        let box_p = *p;
+                        p.x += 1.0;
+                        Some(Some(box_p))
+                    }
+                    '\n' => {
+                        p.x = -20.0;
+                        p.y -= 1.0;
+                        Some(None)
+                    }
+                    _ => Some(None)
+                }
+            }).filter_map(|p| p).collect();
+
         let path: VecDeque<_> = (0..180).map(|x| vec2(
             x as f32 * 0.1 - 18.0,
             0.0
@@ -66,6 +102,10 @@ impl Game {
                 left: false,
                 right: false,
                 forward: false
+            },
+            ground: state::Ground {
+                boxes,
+                dirty: state::DirtyFlags::ALL
             },
             cat: state::Cat {
                 position: *path.back().unwrap(),
@@ -112,7 +152,7 @@ impl Game {
 
         self.update_cat(delta_time);
 
-        self.renderer.render(&self.state)?;
+        self.renderer.render(&mut self.state)?;
         Ok(true)
     }
 

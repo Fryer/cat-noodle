@@ -6,6 +6,9 @@ use std::{
     sync::{mpsc, Mutex}
 };
 
+#[macro_use]
+extern crate bitflags;
+
 extern crate glfw;
 use glfw::Context;
 
