@@ -138,7 +138,7 @@ impl Renderer {
         rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
         self.program.use_program()?;
-        self.set_transform(zoom, 0.0, 0.0, 1.0, 0.0)?;
+        self.set_transform(zoom, -cat.position.x, -cat.position.y, 1.0, 0.0)?;
 
         self.cat_sprite.bind(0)?;
         self.cat.render()?;
