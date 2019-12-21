@@ -10,6 +10,8 @@ use lib::math::{Vec2, vec2};
 mod renderer;
 use renderer::Renderer;
 
+mod physics;
+
 mod state {
     use std::collections::VecDeque;
 
@@ -61,7 +63,8 @@ pub struct Game {
     last_update: time::Instant,
     event_receiver: mpsc::Receiver<Event>,
     state: State,
-    renderer: Renderer
+    renderer: Renderer,
+    physics: physics::World
 }
 
 
@@ -119,7 +122,8 @@ impl Game {
             last_update: time::Instant::now(),
             event_receiver,
             state,
-            renderer: Renderer::new()?
+            renderer: Renderer::new()?,
+            physics: physics::World::new()
         })
     }
 
@@ -151,6 +155,8 @@ impl Game {
         let delta_time = delta_time.as_secs_f32();
 
         self.update_cat(delta_time);
+
+        self.physics.step(&mut self.state, delta_time);
 
         self.renderer.render(&mut self.state)?;
         Ok(true)
