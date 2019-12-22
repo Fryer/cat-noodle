@@ -24,8 +24,8 @@ pub struct Ground {
 }
 
 pub struct Cat {
-    pub position: Vec2,
     pub direction: Vec2,
+    pub moving: bool,
     pub path: VecDeque<Vec2>,
     pub tail: VecDeque<Vec2>
 }

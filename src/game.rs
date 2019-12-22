@@ -53,8 +53,8 @@ impl Game {
                 }
             }).filter_map(|p| p).collect();
 
-        let path: VecDeque<_> = (0..180).map(|x| vec2(
-            x as f32 * 0.1 - 18.0,
+        let path: VecDeque<_> = (0..30).map(|x| vec2(
+            x as f32 * 0.2 - 6.0,
             0.0
         )).collect();
         let tail: VecDeque<_> = (0..20).map(|x| vec2(
@@ -73,26 +73,28 @@ impl Game {
                 dirty: state::DirtyFlags::ALL
             },
             cat: state::Cat {
-                position: *path.back().unwrap(),
                 direction: vec2(1.0, 0.0),
+                moving: false,
                 path,
                 tail
             }
         };
+
+        let physics = physics::World::new(&state);
         
         Ok(Game {
             last_update: time::Instant::now(),
             event_receiver,
             state,
             renderer: Renderer::new()?,
-            physics: physics::World::new()
+            physics
         })
     }
 
 
     pub fn update(&mut self) -> Result<bool, Box<dyn Error>> {
-        let step_time = time::Duration::from_secs(1) / 480;
-        let max_step = step_time * 48;
+        let step_time = time::Duration::from_secs(1) / 60;
+        let max_step = step_time * 6;
         let mut delta_time = self.last_update.elapsed();
         if delta_time > max_step {
             delta_time = max_step;
@@ -151,33 +153,20 @@ impl Game {
         let input = &self.state.input;
         let cat = &mut self.state.cat;
 
-        let mut moving = input.forward;
+        cat.moving = input.forward;
 
         match (input.left, input.right) {
             (true, false) => {
                 let turn = Vec2::from_angle(delta_time * 3.0);
                 cat.direction = cat.direction.rotated(turn).normalized();
-                moving = true;
+                cat.moving = true;
             }
             (false, true) => {
                 let turn = Vec2::from_angle(-delta_time * 3.0);
                 cat.direction = cat.direction.rotated(turn).normalized();
-                moving = true;
+                cat.moving = true;
             }
             _ => {}
-        }
-
-        if moving {
-            cat.position += cat.direction * 4.0 * delta_time;
-        }
-
-        let last = *cat.path.back().unwrap();
-        let diff = cat.position - last;
-        if diff.length() > 0.1 {
-            cat.path.pop_front();
-            cat.path.push_back(last + diff.normalized() * 0.1);
-            cat.tail.pop_back();
-            cat.tail.push_front(*cat.path.front().unwrap());
         }
     }
 }

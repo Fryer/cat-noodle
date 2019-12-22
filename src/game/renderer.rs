@@ -116,29 +116,13 @@ impl Renderer {
         }
 
         let cat = &state.cat;
-        let last = *cat.path.back().unwrap();
-        let diff = cat.position - last;
-        let diff_len = diff.length();
-        if diff_len > std::f32::EPSILON * 1000.0 {
-            let pos_normal = last + diff.normalized() * 0.1;
-            let path = cat.path.iter().copied().skip(1).chain(std::iter::once(pos_normal));
-            let path = cat.path.iter().copied().zip(path)
-                .map(|(p, next)| p + (next - p) * 10.0 * diff_len)
-                .collect::<Vec<_>>();
-            let tail = cat.tail.iter().copied();
-            let tail = cat.tail.iter().copied().skip(1).zip(tail)
-                .map(|(p, next)| p + (next - p) * 10.0 * diff_len);
-            let tail = std::iter::once(path[0]).chain(tail).collect::<Vec<_>>();
-            self.cat.update(path.iter().copied(), tail.iter().copied())?;
-        }
-        else {
-            self.cat.update(state.cat.path.iter().copied(), state.cat.tail.iter().copied())?;
-        }
+        self.cat.update(cat.path.iter().copied(), cat.tail.iter().copied())?;
 
         rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
         self.program.use_program()?;
-        self.set_transform(zoom, -cat.position.x, -cat.position.y, 1.0, 0.0)?;
+        let camera = cat.path.back().unwrap();
+        self.set_transform(zoom, -camera.x, -camera.y, 1.0, 0.0)?;
 
         self.cat_sprite.bind(0)?;
         self.cat.render()?;
