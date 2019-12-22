@@ -107,14 +107,11 @@ impl World {
             let normal = -manifold.deepest_contact().unwrap().contact.normal;
             if normal.x < -normal.y.abs() {
                 cat.direction.x = -cat.direction.x.abs();
-            }
-            else if normal.y < -normal.x.abs() {
+            } else if normal.y < -normal.x.abs() {
                 cat.direction.y = -cat.direction.y.abs();
-            }
-            else if normal.x > normal.y.abs() {
+            } else if normal.x > normal.y.abs() {
                 cat.direction.x = cat.direction.x.abs();
-            }
-            else if normal.y > normal.x.abs() {
+            } else if normal.y > normal.x.abs() {
                 cat.direction.y = cat.direction.y.abs();
             }
         }
