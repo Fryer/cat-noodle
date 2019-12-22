@@ -91,8 +91,8 @@ impl Game {
 
 
     pub fn update(&mut self) -> Result<bool, Box<dyn Error>> {
-        let step_time = time::Duration::from_secs(1) / 60;
-        let max_step = step_time * 6;
+        let step_time = time::Duration::from_secs(1) / 480;
+        let max_step = step_time * 48;
         let mut delta_time = self.last_update.elapsed();
         if delta_time > max_step {
             delta_time = max_step;
