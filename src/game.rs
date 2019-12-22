@@ -129,37 +129,59 @@ impl Game {
 
 
     pub fn update(&mut self) -> Result<bool, Box<dyn Error>> {
-        while let Ok(event) = self.event_receiver.try_recv() {
-            match event {
-                Event::Close => {
-                    println!("close");
-                    return Ok(false);
-                }
-                Event::Key(action, glfw::Key::Left) => {
-                    self.state.input.left = action != glfw::Action::Release;
-                }
-                Event::Key(action, glfw::Key::Right) => {
-                    self.state.input.right = action != glfw::Action::Release;
-                }
-                Event::Key(action, glfw::Key::Up) => {
-                    self.state.input.forward = action != glfw::Action::Release;
-                }
-                Event::Key(action, key) => {
-                    println!("key {:?}: {:?}", action, key);
-                }
+        let step_time = time::Duration::from_secs(1) / 60;
+        let max_step = step_time * 6;
+        let mut delta_time = self.last_update.elapsed();
+        if delta_time > max_step {
+            delta_time = max_step;
+        }
+        while delta_time >= step_time {
+            if !self.step(step_time.as_secs_f32()) {
+                return Ok(false);
             }
+            delta_time -= step_time;
+            self.last_update += step_time;
         }
 
-        let delta_time = self.last_update.elapsed();
-        self.last_update += delta_time;
-        let delta_time = delta_time.as_secs_f32();
+        self.renderer.render(&mut self.state)?;
+        Ok(true)
+    }
+
+
+    fn step(&mut self, delta_time: f32) -> bool {
+        while let Ok(event) = self.event_receiver.try_recv() {
+            if !self.handle_event(event) {
+                return false;
+            }
+        }
 
         self.update_cat(delta_time);
 
         self.physics.step(&mut self.state, delta_time);
+        true
+    }
 
-        self.renderer.render(&mut self.state)?;
-        Ok(true)
+
+    fn handle_event(&mut self, event: Event) -> bool {
+        match event {
+            Event::Close => {
+                println!("close");
+                return false;
+            }
+            Event::Key(action, glfw::Key::Left) => {
+                self.state.input.left = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Right) => {
+                self.state.input.right = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Up) => {
+                self.state.input.forward = action != glfw::Action::Release;
+            }
+            Event::Key(action, key) => {
+                println!("key {:?}: {:?}", action, key);
+            }
+        }
+        true
     }
 
 
