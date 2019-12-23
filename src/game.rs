@@ -5,7 +5,7 @@ use std::{
     collections::VecDeque
 };
 
-use lib::math::{Vec2, vec2};
+use lib::math::vec2;
 
 mod state;
 use state::State;
@@ -53,8 +53,8 @@ impl Game {
                 }
             }).filter_map(|p| p).collect();
 
-        let path: VecDeque<_> = (0..30).map(|x| vec2(
-            x as f32 * 0.2 - 6.0,
+        let path: VecDeque<_> = (0..180).map(|x| vec2(
+            x as f32 * 0.1 - 18.0,
             0.0
         )).collect();
         let tail: VecDeque<_> = (0..20).map(|x| vec2(
@@ -73,8 +73,7 @@ impl Game {
                 dirty: state::DirtyFlags::ALL
             },
             cat: state::Cat {
-                direction: vec2(1.0, 0.0),
-                moving: false,
+                movement: state::CatMovement::None,
                 path,
                 tail
             }
@@ -93,8 +92,8 @@ impl Game {
 
 
     pub fn update(&mut self) -> Result<bool, Box<dyn Error>> {
-        let step_time = time::Duration::from_secs(1) / 60;
-        let max_step = step_time * 6;
+        let step_time = time::Duration::from_secs(1) / 480;
+        let max_step = step_time * 48;
         let mut delta_time = self.last_update.elapsed();
         if delta_time > max_step {
             delta_time = max_step;
@@ -149,24 +148,16 @@ impl Game {
     }
 
 
-    fn update_cat(&mut self, delta_time: f32) {
+    fn update_cat(&mut self, _delta_time: f32) {
         let input = &self.state.input;
         let cat = &mut self.state.cat;
 
-        cat.moving = input.forward;
-
-        match (input.left, input.right) {
-            (true, false) => {
-                let turn = Vec2::from_angle(delta_time * 3.0);
-                cat.direction = cat.direction.rotated(turn).normalized();
-                cat.moving = true;
-            }
-            (false, true) => {
-                let turn = Vec2::from_angle(-delta_time * 3.0);
-                cat.direction = cat.direction.rotated(turn).normalized();
-                cat.moving = true;
-            }
-            _ => {}
+        cat.movement = match (input.left, input.right) {
+            (true, false) => state::CatMovement::Left,
+            (false, true) => state::CatMovement::Right,
+            _ =>
+                if input.forward { state::CatMovement::Forward }
+                else { state::CatMovement::None }
         }
     }
 }

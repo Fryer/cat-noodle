@@ -11,9 +11,7 @@ bitflags = "1.2.1"
 glfw = "0.34.0"
 gl = "0.14.0"
 image = "0.22.3"
-nalgebra = "0.19"
-ncollide2d = "0.21"
-nphysics2d = "0.13.0"
+wrapped2d = "0.4.0"
 
 [lib]
 name="lib"

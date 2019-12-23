@@ -23,9 +23,16 @@ pub struct Ground {
     pub dirty: DirtyFlags
 }
 
+#[derive(PartialEq)]
+pub enum CatMovement {
+    None,
+    Forward,
+    Left,
+    Right
+}
+
 pub struct Cat {
-    pub direction: Vec2,
-    pub moving: bool,
+    pub movement: CatMovement,
     pub path: VecDeque<Vec2>,
     pub tail: VecDeque<Vec2>
 }
