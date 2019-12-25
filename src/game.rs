@@ -95,6 +95,7 @@ impl Game {
         let step_time = time::Duration::from_secs(1) / 480;
         let max_step = step_time * 48;
         let mut delta_time = self.last_update.elapsed();
+        self.last_update += delta_time;
         if delta_time > max_step {
             delta_time = max_step;
         }
@@ -103,7 +104,6 @@ impl Game {
                 return Ok(false);
             }
             delta_time -= step_time;
-            self.last_update += step_time;
         }
 
         self.renderer.render(&mut self.state)?;
