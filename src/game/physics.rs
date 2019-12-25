@@ -24,6 +24,8 @@ impl World {
             &b2::BodyDef {
                 body_type: b2::BodyType::Dynamic,
                 position: b2::Vec2 { x: path[0].x, y: path[0].y },
+                linear_damping: 2.0,
+                angular_damping: 1.0,
                 .. b2::BodyDef::new()
             }
         );
@@ -38,6 +40,8 @@ impl World {
                 &b2::BodyDef {
                     body_type: b2::BodyType::Dynamic,
                     position: b2::Vec2 { x: p.x, y: p.y },
+                    linear_damping: 2.0,
+                    angular_damping: 1.0,
                     .. b2::BodyDef::new()
                 }
             );
@@ -46,10 +50,18 @@ impl World {
             world.create_joint(
                 &b2::RevoluteJointDef {
                     local_anchor_b: b2::Vec2 { x: d.x, y: d.y },
-                    lower_angle: -std::f32::consts::PI * 0.05,
-                    upper_angle: std::f32::consts::PI * 0.05,
+                    lower_angle: -std::f32::consts::PI * 0.06,
+                    upper_angle: std::f32::consts::PI * 0.06,
                     enable_limit: true,
                     ..b2::RevoluteJointDef::new(link, next)
+                }
+            );
+            world.create_joint(
+                &b2::MotorJointDef {
+                    max_force: 0.0,
+                    max_torque: 10.0,
+                    correction_factor: 1.0,
+                    ..b2::MotorJointDef::new(link, next)
                 }
             );
             link = next;
@@ -90,7 +102,7 @@ impl World {
             }
         }
 
-        self.world.step(delta_time, 1, 1);
+        self.world.step(delta_time, 5, 5);
 
         for (p, link) in cat.path.iter_mut().zip(self.cat_links.iter().copied()) {
             let body = self.world.body(link);
