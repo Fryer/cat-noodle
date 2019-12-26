@@ -66,14 +66,15 @@ impl Game {
             input: state::Input {
                 left: false,
                 right: false,
-                forward: false
+                up: false,
+                down: false
             },
             ground: state::Ground {
                 boxes,
                 dirty: state::DirtyFlags::ALL
             },
             cat: state::Cat {
-                movement: state::CatMovement::None,
+                direction: vec2(0.0, 0.0),
                 path,
                 tail
             }
@@ -138,7 +139,10 @@ impl Game {
                 self.state.input.right = action != glfw::Action::Release;
             }
             Event::Key(action, glfw::Key::Up) => {
-                self.state.input.forward = action != glfw::Action::Release;
+                self.state.input.up = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Down) => {
+                self.state.input.down = action != glfw::Action::Release;
             }
             Event::Key(action, key) => {
                 println!("key {:?}: {:?}", action, key);
@@ -152,12 +156,13 @@ impl Game {
         let input = &self.state.input;
         let cat = &mut self.state.cat;
 
-        cat.movement = match (input.left, input.right) {
-            (true, false) => state::CatMovement::Left,
-            (false, true) => state::CatMovement::Right,
-            _ =>
-                if input.forward { state::CatMovement::Forward }
-                else { state::CatMovement::None }
+        cat.direction = vec2(0.0, 0.0);
+        cat.direction.x -= if input.left { 1.0 } else { 0.0 };
+        cat.direction.x += if input.right { 1.0 } else { 0.0 };
+        cat.direction.y += if input.up { 1.0 } else { 0.0 };
+        cat.direction.y -= if input.down { 1.0 } else { 0.0 };
+        if input.left ^ input.right && input.up ^ input.down {
+            cat.direction = cat.direction.normalized();
         }
     }
 }

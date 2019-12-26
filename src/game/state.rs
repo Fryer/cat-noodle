@@ -15,7 +15,8 @@ bitflags! {
 pub struct Input {
     pub left: bool,
     pub right: bool,
-    pub forward: bool
+    pub up: bool,
+    pub down: bool
 }
 
 pub struct Ground {
@@ -23,16 +24,8 @@ pub struct Ground {
     pub dirty: DirtyFlags
 }
 
-#[derive(PartialEq)]
-pub enum CatMovement {
-    None,
-    Forward,
-    Left,
-    Right
-}
-
 pub struct Cat {
-    pub movement: CatMovement,
+    pub direction: Vec2,
     pub path: VecDeque<Vec2>,
     pub tail: VecDeque<Vec2>
 }

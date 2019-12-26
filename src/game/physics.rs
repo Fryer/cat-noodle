@@ -2,6 +2,8 @@ use wrapped2d::b2;
 use wrapped2d::user_data::NoUserData;
 use wrapped2d::dynamics::world::BodyHandle;
 
+use lib::math::vec2;
+
 use super::state;
 
 
@@ -32,6 +34,8 @@ impl World {
         let circle = b2::CircleShape::new_with(b2::Vec2 { x: 0.0, y: 0.0 }, 0.5);
         let mut cat_fixture = b2::FixtureDef::new();
         cat_fixture.density = 1.0;
+        cat_fixture.restitution = 0.0;
+        cat_fixture.friction = 0.0;
         cat_fixture.filter.group_index = -1;
         world.body_mut(link).create_fixture(&circle, &mut cat_fixture);
         cat_links.push(link);
@@ -91,15 +95,10 @@ impl World {
             ground.dirty -= state::DirtyFlags::PHYSICS;
         }
 
-        if cat.movement != state::CatMovement::None {
-            let d = (*cat.path.back().unwrap() - cat.path[cat.path.len() - 2]).normalized() * 5.0;
+        if cat.direction != vec2(0.0, 0.0) {
             let mut body = self.world.body_mut(*self.cat_links.last().unwrap());
+            let d = cat.direction * 5.0;
             body.set_linear_velocity(&b2::Vec2 { x: d.x, y: d.y });
-            match cat.movement {
-                state::CatMovement::Left => body.set_angular_velocity(5.0),
-                state::CatMovement::Right => body.set_angular_velocity(-5.0),
-                _ => {}
-            }
         }
 
         self.world.step(delta_time, 5, 5);
