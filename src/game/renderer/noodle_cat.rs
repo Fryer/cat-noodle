@@ -100,9 +100,6 @@ impl NoodleCat {
         let mut tail_d = direction(tail_p, tail.clone().nth(1), vec2(0.5, 0.0));
         for (n, (p, p2)) in tail.clone().zip(tail.clone().skip(1)).enumerate() {
             let tail_d2 = direction(p2, tail.clone().nth(n + 2), tail_d);
-            // TODO: Offset the tail using its own root direction.
-            let p = p - d * 0.8;
-            let p2 = p2 - d * 0.8;
             let d = tail_d * 0.4;
             let d2 = tail_d2 * 0.4;
             vertices.extend([
@@ -117,7 +114,7 @@ impl NoodleCat {
         }
 
         // Tail cap.
-        let tail_p = tail.clone().last().unwrap() - d * 0.8;
+        let tail_p = tail.clone().last().unwrap();
         let tail_d = tail_d * 0.4;
         vertices.extend([
             Vertex::new(tail_p + vec2(0.0, 1.0).rotated(tail_d), (0.75, 0.125)),
