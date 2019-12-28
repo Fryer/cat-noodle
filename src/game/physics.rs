@@ -82,6 +82,7 @@ impl World {
                 position: b2::Vec2 { x: tail[0].x, y: tail[0].y },
                 linear_damping: 2.0,
                 angular_damping: 1.0,
+                gravity_scale: 0.1,
                 .. b2::BodyDef::new()
             }
         );
@@ -89,8 +90,8 @@ impl World {
         world.create_joint(
             &b2::RevoluteJointDef {
                 local_anchor_b: b2::Vec2 { x: d.x, y: d.y },
-                lower_angle: -std::f32::consts::PI * 0.06,
-                upper_angle: std::f32::consts::PI * 0.06,
+                lower_angle: -std::f32::consts::PI * 0.25,
+                upper_angle: std::f32::consts::PI * 0.25,
                 enable_limit: true,
                 ..b2::RevoluteJointDef::new(butt, link)
             }
@@ -98,7 +99,7 @@ impl World {
         world.create_joint(
             &b2::MotorJointDef {
                 max_force: 0.0,
-                max_torque: 1.6,
+                max_torque: 5.0,
                 correction_factor: 0.5,
                 ..b2::MotorJointDef::new(butt, link)
             }
@@ -118,6 +119,7 @@ impl World {
                     position: b2::Vec2 { x: p.x, y: p.y },
                     linear_damping: 2.0,
                     angular_damping: 1.0,
+                    gravity_scale: 0.1,
                     .. b2::BodyDef::new()
                 }
             );
@@ -126,8 +128,8 @@ impl World {
             world.create_joint(
                 &b2::RevoluteJointDef {
                     local_anchor_b: b2::Vec2 { x: d.x, y: d.y },
-                    lower_angle: -std::f32::consts::PI * 0.06,
-                    upper_angle: std::f32::consts::PI * 0.06,
+                    lower_angle: -std::f32::consts::PI * 0.1,
+                    upper_angle: std::f32::consts::PI * 0.1,
                     enable_limit: true,
                     ..b2::RevoluteJointDef::new(link, next)
                 }
@@ -135,8 +137,8 @@ impl World {
             world.create_joint(
                 &b2::MotorJointDef {
                     max_force: 0.0,
-                    max_torque: 1.6,
-                    correction_factor: 1.0,
+                    max_torque: 0.5,
+                    correction_factor: 0.5,
                     ..b2::MotorJointDef::new(link, next)
                 }
             );
