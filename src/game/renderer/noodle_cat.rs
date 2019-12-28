@@ -96,10 +96,9 @@ impl NoodleCat {
         ].into_iter());
 
         // Tail.
-        let tail_p = tail.clone().next().unwrap();
-        let mut tail_d = direction(tail_p, tail.clone().nth(1), vec2(0.5, 0.0));
-        for (n, (p, p2)) in tail.clone().zip(tail.clone().skip(1)).enumerate() {
-            let tail_d2 = direction(p2, tail.clone().nth(n + 2), tail_d);
+        let mut tail_d = direction(p, tail.clone().next(), vec2(-0.5, 0.0));
+        for (p, p2) in tail.clone().zip(tail.clone().skip(1)) {
+            let tail_d2 = direction(p, Some(p2), tail_d);
             let d = tail_d * 0.4;
             let d2 = tail_d2 * 0.4;
             vertices.extend([
@@ -126,8 +125,9 @@ impl NoodleCat {
         ].into_iter());
 
         // Body.
-        for (n, (p, p2)) in path.clone().zip(path.clone().skip(1)).enumerate() {
-            let d2 = direction(p, path.clone().nth(n + 2), d);
+        let p3_iter = path.clone().skip(2).map(|p| Some(p)).chain(std::iter::once(None));
+        for ((p, p2), p3) in path.clone().zip(path.clone().skip(1)).zip(p3_iter) {
+            let d2 = direction(p2, p3, d);
             vertices.extend([
                 Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.25, 0.0)),
                 Vertex::new(p + vec2(0.0, -1.0).rotated(d), (0.25, 0.5)),
