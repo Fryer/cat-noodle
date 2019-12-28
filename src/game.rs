@@ -32,35 +32,48 @@ pub struct Game {
 
 impl Game {
     pub fn new(event_receiver: mpsc::Receiver<Event>) -> Result<Game, Box<dyn Error>> {
-        let boxes: Vec<_> = include_str!("level.txt").chars()
-            .scan(vec2(-20.0, 10.0), |p, c| {
+        let tiles = include_str!("level.txt").chars()
+            .scan(vec2(0.0, 0.0), |p, c| {
                 match c {
                     ' ' => {
                         p.x += 1.0;
                         Some(None)
                     }
-                    'X' => {
-                        let box_p = *p;
-                        p.x += 1.0;
-                        Some(Some(box_p))
-                    }
                     '\n' => {
-                        p.x = -20.0;
+                        p.x = 0.0;
                         p.y -= 1.0;
                         Some(None)
                     }
-                    _ => Some(None)
+                    '\r' => Some(None),
+                    _ => {
+                        let tile_p = *p;
+                        p.x += 1.0;
+                        Some(Some((tile_p, c)))
+                    }
                 }
-            }).filter_map(|p| p).collect();
+            }).filter_map(|tile| tile);
 
-        let path: VecDeque<_> = (0..180).map(|x| vec2(
-            x as f32 * 0.1 - 18.0,
-            0.0
-        )).collect();
-        let tail: VecDeque<_> = (0..20).map(|x| vec2(
-            x as f32 * -0.1 - 18.0,
-            0.0
-        )).collect();
+        let boxes: Vec<_> = tiles.clone().filter_map(|tile| {
+            if tile.1 == 'X' { Some(tile.0) }
+            else { None }
+        }).collect();
+
+        let p = tiles.clone().find_map(|tile| {
+            if tile.1 == 'P' { Some(tile.0) }
+            else { None }
+        }).unwrap();
+        let path: VecDeque<_> = (0..10).map(|x|
+            vec2(
+                x as f32 * 0.1 - 1.0,
+                0.0
+            ) + p
+        ).collect();
+        let tail: VecDeque<_> = (0..20).map(|x|
+            vec2(
+                x as f32 * -0.1 - 18.0,
+                0.0
+            ) + p
+        ).collect();
         
         let state = State {
             input: state::Input {
