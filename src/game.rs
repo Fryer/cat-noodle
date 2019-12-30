@@ -62,7 +62,7 @@ impl Game {
             if tile.1 == 'P' { Some(tile.0) }
             else { None }
         }).unwrap();
-        let path: VecDeque<_> = (0..20).map(|x|
+        let path: VecDeque<_> = (0..150).map(|x|
             vec2(
                 x as f32 * 0.1 + 2.0,
                 0.0
@@ -80,7 +80,8 @@ impl Game {
                 left: false,
                 right: false,
                 up: false,
-                down: false
+                down: false,
+                force: false
             },
             ground: state::Ground {
                 boxes,
@@ -156,6 +157,9 @@ impl Game {
             }
             Event::Key(action, glfw::Key::Down) => {
                 self.state.input.down = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::LeftControl) => {
+                self.state.input.force = action != glfw::Action::Release;
             }
             Event::Key(action, key) => {
                 println!("key {:?}: {:?}", action, key);

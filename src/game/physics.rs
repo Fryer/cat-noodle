@@ -1,6 +1,6 @@
 use wrapped2d::b2;
 use wrapped2d::user_data::NoUserData;
-use wrapped2d::dynamics::world::BodyHandle;
+use wrapped2d::dynamics::world::{BodyHandle, JointHandle};
 
 use lib::math::vec2;
 
@@ -11,6 +11,7 @@ pub struct World {
     world: b2::World<NoUserData>,
     ground: BodyHandle,
     cat_links: Vec<BodyHandle>,
+    cat_muscles: Vec<JointHandle>,
     tail_links: Vec<BodyHandle>
 }
 
@@ -22,7 +23,8 @@ impl World {
         let ground = world.create_body(&b2::BodyDef::new());
 
         let path = &state.cat.path;
-        let mut cat_links: Vec<BodyHandle> = Vec::with_capacity(path.len());
+        let mut cat_links: Vec<_> = Vec::with_capacity(path.len());
+        let mut cat_muscles: Vec<_> = Vec::with_capacity(path.len().saturating_sub(1));
         let mut link = world.create_body(
             &b2::BodyDef {
                 body_type: b2::BodyType::Dynamic,
@@ -62,7 +64,7 @@ impl World {
                     ..b2::RevoluteJointDef::new(link, next)
                 }
             );
-            world.create_joint(
+            let muscle = world.create_joint(
                 &b2::MotorJointDef {
                     max_force: 0.0,
                     max_torque: 10.0,
@@ -72,10 +74,11 @@ impl World {
             );
             link = next;
             cat_links.push(link);
+            cat_muscles.push(muscle);
         }
 
         let tail = &state.cat.tail;
-        let mut tail_links: Vec<BodyHandle> = Vec::with_capacity(tail.len());
+        let mut tail_links: Vec<_> = Vec::with_capacity(tail.len());
         let mut link = world.create_body(
             &b2::BodyDef {
                 body_type: b2::BodyType::Dynamic,
@@ -150,6 +153,7 @@ impl World {
             world,
             ground,
             cat_links,
+            cat_muscles,
             tail_links
         }
     }
@@ -170,10 +174,49 @@ impl World {
             ground.dirty -= state::DirtyFlags::PHYSICS;
         }
 
-        if cat.direction != vec2(0.0, 0.0) {
+        let mut turn = 0.0;
+        if state.input.force {
             let mut body = self.world.body_mut(*self.cat_links.last().unwrap());
             let d = cat.direction * 5.0;
             body.set_linear_velocity(&b2::Vec2 { x: d.x, y: d.y });
+        }
+        else if cat.direction != vec2(0.0, 0.0) {
+            let p = cat.path[cat.path.len() - 2];
+            let p2 = cat.path.back().copied().unwrap();
+            let d = p2 - p;
+            if d.length() >= std::f32::EPSILON * 1000.0 {
+                let d = cat.direction.unrotated(d.normalized());
+                turn = d.y.atan2(d.x);
+            }
+        }
+        let p3_iter = cat.path.iter().copied()
+            .zip(cat.path.iter().copied().skip(1))
+            .zip(cat.path.iter().copied().skip(2));
+        let angle_iter = p3_iter.map(|((p, p2), p3)| {
+            let d = p2 - p;
+            let d2 = p3 - p2;
+            if d.length() >= std::f32::EPSILON * 1000.0 && d2.length() >= std::f32::EPSILON * 1000.0 {
+                let dd = d2.unrotated(d.normalized());
+                dd.y.atan2(dd.x)
+            }
+            else { 0.0 }
+        });
+        for (muscle, angle) in self.cat_muscles.iter().copied().rev().zip(angle_iter.rev()) {
+            let mut joint = self.world.joint_mut(muscle);
+            let motor = match &mut **joint {
+                b2::UnknownJoint::Motor(motor) => motor,
+                _ => unreachable!()
+            };
+            if turn.abs() >= std::f32::consts::PI * 0.06 {
+                let offset = (std::f32::consts::PI * 0.06).copysign(turn);
+                motor.set_angular_offset(offset);
+                motor.set_max_torque(100.0);
+                turn -= offset - angle;
+            }
+            else {
+                motor.set_angular_offset(0.0);
+                motor.set_max_torque(10.0);
+            }
         }
 
         self.world.step(delta_time, 5, 5);

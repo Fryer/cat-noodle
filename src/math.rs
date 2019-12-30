@@ -32,6 +32,14 @@ impl Vec2 {
             self.x * direction.y + self.y * direction.x
         )
     }
+
+
+    pub fn unrotated(self, direction: Vec2) -> Vec2 {
+        vec2(
+            self.x * direction.x + self.y * direction.y,
+            self.y * direction.x - self.x * direction.y
+        )
+    }
 }
 
 

@@ -16,7 +16,8 @@ pub struct Input {
     pub left: bool,
     pub right: bool,
     pub up: bool,
-    pub down: bool
+    pub down: bool,
+    pub force: bool
 }
 
 pub struct Ground {
