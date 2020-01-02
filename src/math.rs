@@ -21,6 +21,11 @@ impl Vec2 {
     }
 
 
+    pub fn to_angle(self) -> f32 {
+        self.y.atan2(self.x)
+    }
+
+
     pub fn length(self) -> f32 {
         self.x.hypot(self.y)
     }
