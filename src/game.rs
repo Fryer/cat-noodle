@@ -88,7 +88,7 @@ impl Game {
                 dirty: state::DirtyFlags::ALL
             },
             cat: state::Cat {
-                direction: vec2(0.0, 0.0),
+                direction: None,
                 path,
                 tail
             }
@@ -173,13 +173,15 @@ impl Game {
         let input = &self.state.input;
         let cat = &mut self.state.cat;
 
-        cat.direction = vec2(0.0, 0.0);
-        cat.direction.x -= if input.left { 1.0 } else { 0.0 };
-        cat.direction.x += if input.right { 1.0 } else { 0.0 };
-        cat.direction.y += if input.up { 1.0 } else { 0.0 };
-        cat.direction.y -= if input.down { 1.0 } else { 0.0 };
-        if input.left ^ input.right && input.up ^ input.down {
-            cat.direction = cat.direction.normalized();
+        if input.left ^ input.right || input.up ^ input.down {
+            let d = vec2(
+                input.right as i8 as f32 - input.left as i8 as f32,
+                input.up as i8 as f32 - input.down as i8 as f32
+            );
+            cat.direction = Some(d.y.atan2(d.x));
+        }
+        else {
+            cat.direction = None;
         }
     }
 }

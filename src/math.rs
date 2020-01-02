@@ -5,6 +5,11 @@ pub struct Vec2 {
 }
 
 
+pub fn wrap_angle(a: f32) -> f32 {
+    (a + std::f32::consts::PI).rem_euclid(std::f32::consts::PI * 2.0) - std::f32::consts::PI
+}
+
+
 pub fn vec2(x: f32, y: f32) -> Vec2 {
     Vec2 { x, y }
 }
@@ -18,6 +23,11 @@ impl Vec2 {
 
     pub fn length(self) -> f32 {
         self.x.hypot(self.y)
+    }
+
+
+    pub fn length_squared(self) -> f32 {
+        self.x * self.x + self.y * self.y
     }
 
 

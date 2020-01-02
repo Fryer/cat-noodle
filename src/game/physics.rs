@@ -2,7 +2,7 @@ use wrapped2d::b2;
 use wrapped2d::user_data::NoUserData;
 use wrapped2d::dynamics::world::{BodyHandle, JointHandle};
 
-use lib::math::vec2;
+use lib::math::{Vec2, wrap_angle};
 
 use super::state;
 
@@ -161,8 +161,6 @@ impl World {
 
     pub fn step(&mut self, state: &mut state::State, delta_time: f32) {
         let ground = &mut state.ground;
-        let cat = &mut state.cat;
-
         if ground.dirty.contains(state::DirtyFlags::PHYSICS) {
             self.world.destroy_body(self.ground);
             self.ground = self.world.create_body(&b2::BodyDef::new());
@@ -174,21 +172,59 @@ impl World {
             ground.dirty -= state::DirtyFlags::PHYSICS;
         }
 
+        self.control_cat(state, delta_time);
+
+        self.world.step(delta_time, 5, 5);
+
+        let cat = &mut state.cat;
+        for (p, link) in cat.path.iter_mut().zip(self.cat_links.iter().copied()) {
+            let body = self.world.body(link);
+            p.x = body.position().x;
+            p.y = body.position().y;
+        }
+        for (p, link) in cat.tail.iter_mut().zip(self.tail_links.iter().copied()) {
+            let body = self.world.body(link);
+            p.x = body.position().x;
+            p.y = body.position().y;
+        }
+    }
+
+
+    fn control_cat(&mut self, state: &mut state::State, _delta_time: f32) {
+        let input = &mut state.input;
+        let cat = &mut state.cat;
+
+        let direction = match cat.direction {
+            Some(direction) => direction,
+            None => {
+                for muscle in self.cat_muscles.iter().copied() {
+                    let mut joint = self.world.joint_mut(muscle);
+                    let motor = match &mut **joint {
+                        b2::UnknownJoint::Motor(motor) => motor,
+                        _ => unreachable!()
+                    };
+                    motor.set_angular_offset(0.0);
+                    motor.set_max_torque(10.0);
+                }
+                return
+            }
+        };
+
         let mut turn = 0.0;
-        if state.input.force {
+        if input.force {
             let mut body = self.world.body_mut(*self.cat_links.last().unwrap());
-            let d = cat.direction * 5.0;
+            let d = Vec2::from_angle(direction) * 5.0;
             body.set_linear_velocity(&b2::Vec2 { x: d.x, y: d.y });
         }
-        else if cat.direction != vec2(0.0, 0.0) {
+        else {
             let p = cat.path[cat.path.len() - 2];
             let p2 = cat.path.back().copied().unwrap();
             let d = p2 - p;
-            if d.length() >= std::f32::EPSILON * 1000.0 {
-                let d = cat.direction.unrotated(d.normalized());
-                turn = d.y.atan2(d.x);
+            if d.length_squared() >= 1000.0 * std::f32::EPSILON * std::f32::EPSILON {
+                turn = wrap_angle(direction - d.y.atan2(d.x));
             }
         }
+
         let p3_iter = cat.path.iter().copied()
             .zip(cat.path.iter().copied().skip(1))
             .zip(cat.path.iter().copied().skip(2));
@@ -201,14 +237,15 @@ impl World {
             }
             else { 0.0 }
         });
+
         for (muscle, angle) in self.cat_muscles.iter().copied().rev().zip(angle_iter.rev()) {
             let mut joint = self.world.joint_mut(muscle);
             let motor = match &mut **joint {
                 b2::UnknownJoint::Motor(motor) => motor,
                 _ => unreachable!()
             };
-            if turn.abs() >= std::f32::consts::PI * 0.06 {
-                let offset = (std::f32::consts::PI * 0.06).copysign(turn);
+            if turn.abs() >= std::f32::EPSILON {
+                let offset = (turn + angle).max(-std::f32::consts::PI * 0.06).min(std::f32::consts::PI * 0.06);
                 motor.set_angular_offset(offset);
                 motor.set_max_torque(100.0);
                 turn -= offset - angle;
@@ -217,19 +254,6 @@ impl World {
                 motor.set_angular_offset(0.0);
                 motor.set_max_torque(10.0);
             }
-        }
-
-        self.world.step(delta_time, 5, 5);
-
-        for (p, link) in cat.path.iter_mut().zip(self.cat_links.iter().copied()) {
-            let body = self.world.body(link);
-            p.x = body.position().x;
-            p.y = body.position().y;
-        }
-        for (p, link) in cat.tail.iter_mut().zip(self.tail_links.iter().copied()) {
-            let body = self.world.body(link);
-            p.x = body.position().x;
-            p.y = body.position().y;
         }
     }
 }
