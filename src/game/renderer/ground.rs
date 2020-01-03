@@ -1,7 +1,9 @@
 use lib::rgl;
-use lib::math::{Vec2, vec2};
+use lib::math::vec2;
 
 use super::vertex::{self, Vertex};
+
+use super::state;
 
 
 pub struct Ground {
@@ -19,12 +21,15 @@ impl Ground {
     }
 
 
-    pub fn update<B>(&mut self, boxes: B) -> Result<(), rgl::GLError>
-        where B: ExactSizeIterator<Item = Vec2>
-    {
-        let mut vertices: Vec<Vertex> = Vec::with_capacity(boxes.len() * 6);
+    pub fn update(&mut self, ground: &mut state::Ground) -> Result<(), rgl::GLError> {
+        if !ground.dirty.contains(state::DirtyFlags::RENDER) {
+            return Ok(());
+        }
+        ground.dirty -= state::DirtyFlags::RENDER;
 
-        for p in boxes {
+        let mut vertices: Vec<Vertex> = Vec::with_capacity(ground.boxes.len() * 6);
+
+        for p in ground.boxes.iter().copied() {
             vertices.extend([
                 Vertex::new(p + vec2(-0.5, 0.5), (0.0, 0.0)),
                 Vertex::new(p + vec2(-0.5, -0.5), (0.0, 1.0)),

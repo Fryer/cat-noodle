@@ -3,6 +3,8 @@ use lib::math::{Vec2, vec2};
 
 use super::vertex::{self, Vertex};
 
+use super::state;
+
 
 pub struct NoodleCat {
     vertex_array: rgl::VertexArray,
@@ -25,11 +27,9 @@ impl NoodleCat {
     }
 
 
-    pub fn update<P, T>(&mut self, path: P, tail: T) -> Result<(), rgl::GLError>
-        where
-            P: ExactSizeIterator<Item = Vec2> + Clone,
-            T: ExactSizeIterator<Item = Vec2> + Clone
-    {
+    pub fn update(&mut self, cat: &state::Cat) -> Result<(), rgl::GLError> {
+        let path = &cat.path;
+        let tail = &cat.tail;
         let mut vertices: Vec<Vertex> = Vec::with_capacity((path.len() + tail.len() + 11) * 6);
 
         fn direction(p: Vec2, target: Option<Vec2>, default: Vec2) -> Vec2 {
@@ -43,8 +43,8 @@ impl NoodleCat {
             }
         }
 
-        let p = path.clone().last().unwrap();
-        let d = -direction(p, path.clone().nth(path.len().wrapping_sub(2)), vec2(-0.5, 0.0));
+        let p = path.back().copied().unwrap();
+        let d = -direction(p, path.get(path.len() - 2).copied(), vec2(-0.5, 0.0));
         let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
 
         // Far ear.
@@ -70,8 +70,8 @@ impl NoodleCat {
             Vertex::rgb(paw_p - vec2(0.2, 0.2), (0.875, 0.125), 127, 127, 127)
         ].into_iter());
 
-        let p = path.clone().next().unwrap();
-        let mut d = direction(p, path.clone().nth(1), vec2(0.5, 0.0));
+        let p = path[0];
+        let mut d = direction(p, path.get(1).copied(), vec2(0.5, 0.0));
         let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
 
         // Far back paw.
@@ -96,8 +96,8 @@ impl NoodleCat {
         ].into_iter());
 
         // Tail.
-        let mut tail_d = direction(p, tail.clone().next(), vec2(-0.5, 0.0));
-        for (p, p2) in tail.clone().zip(tail.clone().skip(1)) {
+        let mut tail_d = direction(p, tail.front().copied(), vec2(-0.5, 0.0));
+        for (p, p2) in tail.iter().copied().zip(tail.iter().copied().skip(1)) {
             let tail_d2 = direction(p, Some(p2), tail_d);
             let d = tail_d * 0.4;
             let d2 = tail_d2 * 0.4;
@@ -113,7 +113,7 @@ impl NoodleCat {
         }
 
         // Tail cap.
-        let tail_p = tail.clone().last().unwrap();
+        let tail_p = tail.back().copied().unwrap();
         let tail_d = tail_d * 0.4;
         vertices.extend([
             Vertex::new(tail_p + vec2(0.0, 1.0).rotated(tail_d), (0.75, 0.125)),
@@ -125,8 +125,8 @@ impl NoodleCat {
         ].into_iter());
 
         // Body.
-        let p3_iter = path.clone().skip(2).map(|p| Some(p)).chain(std::iter::once(None));
-        for ((p, p2), p3) in path.clone().zip(path.clone().skip(1)).zip(p3_iter) {
+        let p3_iter = path.iter().copied().skip(2).map(|p| Some(p)).chain(std::iter::once(None));
+        for ((p, p2), p3) in path.iter().copied().zip(path.iter().copied().skip(1)).zip(p3_iter) {
             let d2 = direction(p2, p3, d);
             vertices.extend([
                 Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.25, 0.0)),
@@ -140,7 +140,7 @@ impl NoodleCat {
         }
 
         // Head.
-        let p = path.clone().last().unwrap();
+        let p = path.back().copied().unwrap();
         vertices.extend([
             Vertex::new(p + vec2(0.0, 1.0).rotated(d), (0.25, 0.0)),
             Vertex::new(p + vec2(0.0, -1.0).rotated(d), (0.25, 0.5)),
@@ -218,8 +218,8 @@ impl NoodleCat {
             Vertex::new(paw_p - vec2(0.2, 0.2), (0.875, 0.125))
         ].into_iter());
 
-        let p = path.clone().next().unwrap();
-        let d = direction(p, path.clone().nth(1), vec2(0.5, 0.0));
+        let p = path[0];
+        let d = direction(p, path.get(1).copied(), vec2(0.5, 0.0));
         let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
 
         // Near back paw.

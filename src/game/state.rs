@@ -17,7 +17,7 @@ pub struct Input {
     pub right: bool,
     pub up: bool,
     pub down: bool,
-    pub force: bool
+    pub fly: bool
 }
 
 pub struct Ground {
@@ -27,6 +27,7 @@ pub struct Ground {
 
 pub struct Cat {
     pub direction: Option<f32>,
+    pub flying: bool,
     pub path: VecDeque<Vec2>,
     pub tail: VecDeque<Vec2>
 }

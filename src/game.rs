@@ -81,7 +81,7 @@ impl Game {
                 right: false,
                 up: false,
                 down: false,
-                force: false
+                fly: false
             },
             ground: state::Ground {
                 boxes,
@@ -89,6 +89,7 @@ impl Game {
             },
             cat: state::Cat {
                 direction: None,
+                flying: false,
                 path,
                 tail
             }
@@ -159,7 +160,7 @@ impl Game {
                 self.state.input.down = action != glfw::Action::Release;
             }
             Event::Key(action, glfw::Key::LeftControl) => {
-                self.state.input.force = action != glfw::Action::Release;
+                self.state.input.fly = action != glfw::Action::Release;
             }
             Event::Key(action, key) => {
                 println!("key {:?}: {:?}", action, key);
@@ -178,10 +179,12 @@ impl Game {
                 input.right as i8 as f32 - input.left as i8 as f32,
                 input.up as i8 as f32 - input.down as i8 as f32
             );
-            cat.direction = Some(d.y.atan2(d.x));
+            cat.direction = Some(d.to_angle());
         }
         else {
             cat.direction = None;
         }
+
+        cat.flying = input.fly;
     }
 }

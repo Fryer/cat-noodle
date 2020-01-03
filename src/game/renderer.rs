@@ -109,14 +109,10 @@ impl Renderer {
         let _time = self.start_time.elapsed().as_secs_f64();
         let zoom = 0.2;
 
-        let ground = &mut state.ground;
-        if ground.dirty.contains(state::DirtyFlags::RENDER) {
-            self.ground.update(ground.boxes.iter().copied())?;
-            ground.dirty -= state::DirtyFlags::RENDER;
-        }
+        self.ground.update(&mut state.ground)?;
 
         let cat = &state.cat;
-        self.cat.update(cat.path.iter().copied(), cat.tail.iter().copied())?;
+        self.cat.update(&state.cat)?;
 
         rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
