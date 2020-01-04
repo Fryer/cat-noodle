@@ -1,9 +1,9 @@
 use wrapped2d::b2;
-use wrapped2d::user_data::NoUserData;
 use wrapped2d::dynamics::world::{BodyHandle, JointHandle};
 
 use lib::math::{Vec2, wrap_angle};
 
+use super::B2World;
 use super::state;
 
 
@@ -15,7 +15,7 @@ pub struct NoodleCat {
 
 
 impl NoodleCat {
-    pub fn new(world: &mut b2::World<NoUserData>, cat: &state::Cat) -> NoodleCat {
+    pub fn new(world: &mut B2World, cat: &state::Cat) -> NoodleCat {
         let path = &cat.path;
         let mut links: Vec<_> = Vec::with_capacity(path.len());
         let mut muscles: Vec<_> = Vec::with_capacity(path.len().saturating_sub(1));
@@ -151,7 +151,7 @@ impl NoodleCat {
     }
 
 
-    pub fn update(&self, cat: &mut state::Cat, world: &b2::World<NoUserData>) {
+    pub fn update(&self, cat: &mut state::Cat, world: &B2World) {
         for (p, link) in cat.path.iter_mut().zip(self.links.iter().copied()) {
             let body = world.body(link);
             p.x = body.position().x;
@@ -165,39 +165,7 @@ impl NoodleCat {
     }
 
 
-    pub fn control(&mut self, world: &mut b2::World<NoUserData>, cat: &state::Cat) {
-        if cat.direction.is_none() || cat.flying {
-            for muscle in self.muscles.iter().copied() {
-                let mut joint = world.joint_mut(muscle);
-                let motor = match &mut **joint {
-                    b2::UnknownJoint::Motor(motor) => motor,
-                    _ => unreachable!()
-                };
-                motor.set_angular_offset(0.0);
-                motor.set_max_torque(10.0);
-            }
-        }
-
-        let direction = match cat.direction {
-            Some(direction) => direction,
-            None => return
-        };
-
-        if cat.flying {
-            let mut body = world.body_mut(*self.links.last().unwrap());
-            let d = Vec2::from_angle(direction) * 5.0;
-            body.set_linear_velocity(&b2::Vec2 { x: d.x, y: d.y });
-            return;
-        }
-
-        // TODO: Try doing movement further back in the chain after orientation.
-        //self.control_orientation(world, cat, direction);
-        self.control_movement(world, cat, direction);
-    }
-
-
-    #[allow(dead_code)]
-    fn control_orientation(&mut self, world: &mut b2::World<NoUserData>, cat: &state::Cat, direction: f32) {
+    pub fn control(&mut self, world: &mut B2World, cat: &state::Cat) {
         let p3_iter = cat.path.iter().copied()
             .zip(cat.path.iter().copied().skip(1))
             .zip(cat.path.iter().copied().skip(2));
@@ -209,54 +177,59 @@ impl NoodleCat {
             }
             else { 0.0 }
         });
+        let muscle_iter = self.muscles.iter().copied();
+        let p_iter = cat.path.iter().copied();
+        let mut control_iter = muscle_iter.rev()
+            .zip(angle_iter.rev())
+            .zip(p_iter.rev().skip(1))
+            .enumerate()
+            .map(|(n, ((muscle, angle), p))| (n, muscle, angle, p));
 
-        let mut turn = 0.0;
-        let p = cat.path[cat.path.len() - 2];
-        let p2 = cat.path.back().copied().unwrap();
-        let d = p2 - p;
-        if d.length_squared() >= 1000.0 * std::f32::EPSILON * std::f32::EPSILON {
-            turn = wrap_angle(direction - d.to_angle());
+        if let Some(direction) = cat.direction {
+            if cat.flying {
+                let mut body = world.body_mut(*self.links.last().unwrap());
+                let d = Vec2::from_angle(direction) * 5.0;
+                body.set_linear_velocity(&b2::Vec2 { x: d.x, y: d.y });
+            }
+            else {
+                let head_p = cat.path.back().copied().unwrap();
+                Self::control_movement(world, cat.path.len(), direction, head_p, &mut control_iter);
+            }
         }
+        Self::control_relaxed(world, &mut control_iter);
+    }
 
-        for (muscle, angle) in self.muscles.iter().copied().rev().zip(angle_iter.rev()) {
+
+    fn control_relaxed<I: Iterator<Item = (usize, JointHandle, f32, Vec2)>>(
+        world: &mut B2World,
+        control_iter: &mut I
+    ) {
+        for (_, muscle, _, _) in control_iter {
             let mut joint = world.joint_mut(muscle);
             let motor = match &mut **joint {
                 b2::UnknownJoint::Motor(motor) => motor,
                 _ => unreachable!()
             };
-            if turn.abs() >= std::f32::EPSILON {
-                let offset = (turn + angle).max(-std::f32::consts::PI * 0.06).min(std::f32::consts::PI * 0.06);
-                motor.set_angular_offset(offset);
-                motor.set_max_torque(100.0);
-                turn -= offset - angle;
-            }
-            else {
-                motor.set_angular_offset(0.0);
-                motor.set_max_torque(10.0);
-            }
+            motor.set_angular_offset(0.0);
+            motor.set_max_torque(10.0);
         }
     }
 
 
-    fn control_movement(&mut self, world: &mut b2::World<NoUserData>, cat: &state::Cat, direction: f32) {
-        let p3_iter = cat.path.iter().copied()
-            .zip(cat.path.iter().copied().skip(1))
-            .zip(cat.path.iter().copied().skip(2));
-        let angle_iter = p3_iter.map(|((p, p2), p3)| {
-            let d = p2 - p;
-            let d2 = p3 - p2;
-            if d.length() >= std::f32::EPSILON * 1000.0 && d2.length() >= std::f32::EPSILON * 1000.0 {
-                d2.unrotated(d.normalized()).to_angle()
+    fn control_movement<I: Iterator<Item = (usize, JointHandle, f32, Vec2)> + Clone>(
+        world: &mut B2World,
+        cat_length: usize,
+        direction: f32,
+        head_p: Vec2,
+        control_iter: &mut I
+    ) {
+        let mut head_p = head_p;
+        if let Some((n, _, _, _)) = control_iter.clone().next() {
+            if n >= cat_length * 2 / 3 {
+                return;
             }
-            else { 0.0 }
-        });
-
-        let mut head_p = cat.path.back().copied().unwrap();
-
-        let muscle_iter = self.muscles.iter().copied();
-        let p_iter = cat.path.iter().copied();
-        let ik_iter = muscle_iter.rev().zip(angle_iter.rev()).zip(p_iter.rev().skip(1));
-        for (n, ((muscle, angle), p)) in ik_iter.enumerate() {
+        }
+        for (n, muscle, angle, p) in control_iter {
             let mut joint = world.joint_mut(muscle);
             let motor = match &mut **joint {
                 b2::UnknownJoint::Motor(motor) => motor,
@@ -268,23 +241,18 @@ impl NoodleCat {
                 motor.set_max_torque(10.0);
                 continue;
             }
-            let mut offset = wrap_angle(angle + direction - head_lp.to_angle())
+            let offset = wrap_angle(angle + direction - head_lp.to_angle())
                 .max(-std::f32::consts::PI * 0.06).min(std::f32::consts::PI * 0.06);
-            if n <= cat.path.len() / 3 {
-                motor.set_angular_offset(offset);
-                motor.set_max_torque(110.0);
+            let mut factor = 1.0;
+            if n > cat_length / 3 {
+                factor = (cat_length * 2 / 3 - n) as f32 * 3.0 / cat_length as f32;
             }
-            else if n < cat.path.len() * 2 / 3 {
-                let factor = (cat.path.len() * 2 / 3 - n) as f32 * 3.0 / cat.path.len() as f32;
-                offset *= factor;
-                motor.set_angular_offset(offset);
-                motor.set_max_torque(10.0 + 100.0 * factor);
-            }
-            else {
-                motor.set_angular_offset(0.0);
-                motor.set_max_torque(10.0);
-            }
+            motor.set_angular_offset(offset * factor);
+            motor.set_max_torque(10.0 + 100.0 * factor);
             head_p = head_lp.rotated(Vec2::from_angle(offset - angle)) + p;
+            if n >= cat_length * 2 / 3 {
+                break;
+            }
         }
     }
 }

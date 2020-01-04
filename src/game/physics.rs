@@ -8,8 +8,11 @@ use noodle_cat::NoodleCat;
 use super::state;
 
 
+type B2World = b2::World<NoUserData>;
+
+
 pub struct World {
-    world: b2::World<NoUserData>,
+    world: B2World,
     ground: BodyHandle,
     cat: NoodleCat
 }
@@ -17,7 +20,7 @@ pub struct World {
 
 impl World {
     pub fn new(state: &state::State) -> World {
-        let mut world = b2::World::<NoUserData>::new(&b2::Vec2 { x: 0.0, y: -10.0 });
+        let mut world = B2World::new(&b2::Vec2 { x: 0.0, y: -10.0 });
 
         let ground = world.create_body(&b2::BodyDef::new());
 
