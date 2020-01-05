@@ -10,7 +10,9 @@ use super::state;
 pub struct NoodleCat {
     links: Vec<BodyHandle>,
     muscles: Vec<JointHandle>,
-    tail_links: Vec<BodyHandle>
+    tail_links: Vec<BodyHandle>,
+    _grip: Option<JointHandle>,
+    touching: bool
 }
 
 
@@ -29,6 +31,7 @@ impl NoodleCat {
             }
         );
         let butt = link;
+        let mut head = link;
         let circle = b2::CircleShape::new_with(b2::Vec2 { x: 0.0, y: 0.0 }, 0.5);
         let mut fixture = b2::FixtureDef::new();
         fixture.density = 1.0;
@@ -67,6 +70,7 @@ impl NoodleCat {
                 }
             );
             link = next;
+            head = link;
             links.push(link);
             muscles.push(muscle);
         }
@@ -143,10 +147,18 @@ impl NoodleCat {
             tail_links.push(link);
         }
 
+        let circle = b2::CircleShape::new_with(b2::Vec2 { x: 0.0, y: 0.0 }, 1.0);
+        let mut fixture = b2::FixtureDef::new();
+        fixture.is_sensor = true;
+        fixture.filter.group_index = -1;
+        world.body_mut(head).create_fixture(&circle, &mut fixture);
+
         NoodleCat {
             links,
             muscles,
-            tail_links
+            tail_links,
+            _grip: None,
+            touching: false
         }
     }
 
@@ -166,6 +178,28 @@ impl NoodleCat {
 
 
     pub fn control(&mut self, world: &mut B2World, cat: &state::Cat) {
+        let head = self.links.last().copied().unwrap();
+        let head_body = world.body(head);
+        let mut touching = false;
+        for (_, contact) in head_body.contacts() {
+            if !contact.is_touching() {
+                continue;
+            }
+            if (contact.fixture_a().0 == head && head_body.fixture(contact.fixture_a().1).is_sensor())
+                || (contact.fixture_b().0 == head && head_body.fixture(contact.fixture_b().1).is_sensor())
+            {
+                touching = true;
+            }
+        }
+        drop(head_body);
+        if touching && !self.touching {
+            println!("sensor touching");
+        }
+        else if !touching && self.touching {
+            println!("sensor not touching");
+        }
+        self.touching = touching;
+
         let p3_iter = cat.path.iter().copied()
             .zip(cat.path.iter().copied().skip(1))
             .zip(cat.path.iter().copied().skip(2));

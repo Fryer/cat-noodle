@@ -10,7 +10,6 @@ use super::state;
 
 type B2World = b2::World<NoUserData>;
 
-
 pub struct World {
     world: B2World,
     ground: BodyHandle,
