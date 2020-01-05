@@ -1,7 +1,7 @@
 use lib::rgl;
 use lib::math::vec2;
 
-use super::vertex::{self, Vertex};
+use super::vertex::Vertex;
 
 use super::state;
 
@@ -40,7 +40,7 @@ impl Ground {
             ].into_iter());
         }
 
-        self.vertex_array = Some(vertex::create_array(vertices.as_slice(), rgl::BufferUsage::StaticDraw)?);
+        self.vertex_array = Some(Vertex::create_array(vertices.as_slice(), rgl::BufferUsage::StaticDraw)?);
         self.vertices = vertices.len();
         Ok(())
     }
@@ -49,7 +49,7 @@ impl Ground {
     pub fn render(&self) -> Result<(), rgl::GLError> {
         if let Some(vertex_array) = &self.vertex_array {
             vertex_array.bind()?;
-            rgl::draw(0, self.vertices as _)?;
+            rgl::draw(rgl::DrawMode::Triangles, 0, self.vertices as _)?;
         }
         Ok(())
     }

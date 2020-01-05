@@ -21,6 +21,11 @@ pub enum BlendFactor {
 
 pub struct BlendFunction(pub BlendFactor, pub BlendFactor);
 
+pub enum DrawMode {
+    Triangles,
+    Lines
+}
+
 pub enum ShaderType {
     Vertex,
     Fragment
@@ -117,8 +122,12 @@ pub fn clear(r: f32, g: f32, b: f32, a: f32) -> Result<(), GLError> {
 }
 
 
-pub fn draw(start: i32, count: i32) -> Result<(), GLError> {
-    unsafe { gl::DrawArrays(gl::TRIANGLES, start, count); }
+pub fn draw(mode: DrawMode, start: i32, count: i32) -> Result<(), GLError> {
+    let mode = match mode {
+        DrawMode::Triangles => gl::TRIANGLES,
+        DrawMode::Lines => gl::LINES
+    };
+    unsafe { gl::DrawArrays(mode, start, count); }
     handle_error("DrawArrays")?;
     Ok(())
 }

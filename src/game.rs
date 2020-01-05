@@ -83,6 +83,9 @@ impl Game {
                 down: false,
                 fly: false
             },
+            debug: state::DebugInfo {
+                shapes: VecDeque::new()
+            },
             ground: state::Ground {
                 boxes,
                 dirty: state::DirtyFlags::ALL
@@ -122,6 +125,7 @@ impl Game {
             delta_time -= step_time;
         }
 
+        self.physics.update_debug(&mut self.state.debug);
         self.renderer.render(&mut self.state)?;
         Ok(true)
     }

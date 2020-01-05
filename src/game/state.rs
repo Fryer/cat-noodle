@@ -20,6 +20,17 @@ pub struct Input {
     pub fly: bool
 }
 
+pub enum DebugShape {
+    Line(f32, f32, f32, f32),
+    Circle(f32, f32, f32)
+}
+
+pub struct DebugColor(pub u8, pub u8, pub u8, pub u8);
+
+pub struct DebugInfo {
+    pub shapes: VecDeque<(DebugShape, DebugColor)>
+}
+
 pub struct Ground {
     pub boxes: Vec<Vec2>,
     pub dirty: DirtyFlags
@@ -34,6 +45,7 @@ pub struct Cat {
 
 pub struct State {
     pub input: Input,
+    pub debug: DebugInfo,
     pub ground: Ground,
     pub cat: Cat
 }

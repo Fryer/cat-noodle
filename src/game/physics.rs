@@ -16,6 +16,10 @@ pub struct World {
     cat: NoodleCat
 }
 
+struct DebugDraw<'a> {
+    info: &'a mut state::DebugInfo
+}
+
 
 impl World {
     pub fn new(state: &state::State) -> World {
@@ -53,5 +57,98 @@ impl World {
         self.world.step(delta_time, 5, 5);
 
         self.cat.update(cat, &self.world);
+    }
+
+
+    pub fn update_debug(&mut self, info: &mut state::DebugInfo) {
+        self.world.draw_debug_data(&mut DebugDraw { info }, b2::DrawFlags::all());
+    }
+}
+
+
+impl From<&b2::Color> for state::DebugColor {
+    fn from(color: &b2::Color) -> state::DebugColor {
+        state::DebugColor(
+            (color.r * 255.0).round() as _,
+            (color.g * 255.0).round() as _,
+            (color.b * 255.0).round() as _,
+            (color.a * 255.0).round() as _
+        )
+    }
+}
+
+
+impl b2::Draw for DebugDraw<'_> {
+    fn draw_polygon(&mut self, vertices: &[b2::Vec2], color: &b2::Color) {
+        for (p1, p2) in vertices.iter().zip(vertices.iter().skip(1).chain(std::iter::once(&vertices[0]))) {
+            self.info.shapes.push_back((
+                state::DebugShape::Line(
+                    p1.x, p1.y, p2.x, p2.y
+                ), color.into()
+            ));
+        }
+    }
+
+
+    fn draw_solid_polygon(&mut self, vertices: &[b2::Vec2], color: &b2::Color) {
+        for (p1, p2) in vertices.iter().zip(vertices.iter().skip(1).chain(std::iter::once(&vertices[0]))) {
+            self.info.shapes.push_back((
+                state::DebugShape::Line(
+                    p1.x, p1.y, p2.x, p2.y
+                ), color.into()
+            ));
+        }
+    }
+
+
+    fn draw_circle(&mut self, center: &b2::Vec2, radius: f32, color: &b2::Color) {
+        self.info.shapes.push_back((
+            state::DebugShape::Circle(
+                center.x, center.y, radius
+            ), color.into()
+        ));
+    }
+
+
+    fn draw_solid_circle(&mut self, center: &b2::Vec2, radius: f32, axis: &b2::Vec2, color: &b2::Color) {
+        self.info.shapes.push_back((
+            state::DebugShape::Circle(
+                center.x, center.y, radius
+            ), color.into()
+        ));
+        self.info.shapes.push_back((
+            state::DebugShape::Line(
+                center.x, center.y,
+                center.x + axis.x * radius,
+                center.y + axis.y * radius
+            ), color.into()
+        ));
+    }
+
+
+    fn draw_segment(&mut self, p1: &b2::Vec2, p2: &b2::Vec2, color: &b2::Color) {
+        self.info.shapes.push_back((
+            state::DebugShape::Line(
+                p1.x, p1.y, p2.x, p2.y
+            ), color.into()
+        ));
+    }
+
+
+    fn draw_transform(&mut self, xf: &b2::Transform) {
+        self.info.shapes.push_back((
+            state::DebugShape::Line(
+                xf.pos.x, xf.pos.y,
+                xf.pos.x + xf.rot.x_axis().x,
+                xf.pos.y + xf.rot.x_axis().y,
+            ), state::DebugColor(255, 0, 0, 255)
+        ));
+        self.info.shapes.push_back((
+            state::DebugShape::Line(
+                xf.pos.x, xf.pos.y,
+                xf.pos.x + xf.rot.y_axis().x,
+                xf.pos.y + xf.rot.y_axis().y,
+            ), state::DebugColor(0, 255, 0, 255)
+        ));
     }
 }

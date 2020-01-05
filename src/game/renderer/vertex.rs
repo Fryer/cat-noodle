@@ -17,23 +17,20 @@ pub struct Vertex {
     pub a: u8
 }
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DebugVertex {
+    pub x: f32,
+    pub y: f32,
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8
+}
 
 pub trait Position {
     fn x(&self) -> f32;
     fn y(&self) -> f32;
-}
-
-
-pub fn create_array(vertices: &[Vertex], usage: rgl::BufferUsage) -> Result<rgl::VertexArray, rgl::GLError> {
-    let mut buffer = rgl::VertexBuffer::new()?;
-    buffer.set_data(&vertices, usage)?;
-
-    let mut array = rgl::VertexArray::new(buffer)?;
-    array.set_attribute(0, 2, rgl::AttributeType::Float, false, Vertex::stride(), Vertex::position_offset())?;
-    array.set_attribute(1, 2, rgl::AttributeType::Float, false, Vertex::stride(), Vertex::tex_coord_offset())?;
-    array.set_attribute(2, 4, rgl::AttributeType::UByte, true, Vertex::stride(), Vertex::color_offset())?;
-
-    Ok(array)
 }
 
 
@@ -56,6 +53,19 @@ impl Vertex {
     }
 
 
+    pub fn create_array(vertices: &[Vertex], usage: rgl::BufferUsage) -> Result<rgl::VertexArray, rgl::GLError> {
+        let mut buffer = rgl::VertexBuffer::new()?;
+        buffer.set_data(&vertices, usage)?;
+
+        let mut array = rgl::VertexArray::new(buffer)?;
+        array.set_attribute(0, 2, rgl::AttributeType::Float, false, Self::stride(), Self::position_offset())?;
+        array.set_attribute(1, 2, rgl::AttributeType::Float, false, Self::stride(), Self::tex_coord_offset())?;
+        array.set_attribute(2, 4, rgl::AttributeType::UByte, true, Self::stride(), Self::color_offset())?;
+
+        Ok(array)
+    }
+
+
     pub fn stride() -> usize {
         mem::size_of::<Vertex>()
     }
@@ -75,6 +85,45 @@ impl Vertex {
 
     pub fn color_offset() -> usize {
         let vertex = Vertex::new((0.0, 0.0), (0.0, 0.0));
+        &vertex.r as *const _ as usize - &vertex as *const _ as usize
+    }
+}
+
+
+impl DebugVertex {
+    pub fn new<P: Position>(position: P, r: u8, g: u8, b: u8, a: u8) -> DebugVertex {
+        DebugVertex {
+            x: position.x(), y: position.y(),
+            r, g, b, a
+        }
+    }
+
+
+    pub fn create_array(vertices: &[DebugVertex]) -> Result<rgl::VertexArray, rgl::GLError> {
+        let mut buffer = rgl::VertexBuffer::new()?;
+        buffer.set_data(&vertices, rgl::BufferUsage::StreamDraw)?;
+
+        let mut array = rgl::VertexArray::new(buffer)?;
+        array.set_attribute(0, 2, rgl::AttributeType::Float, false, Self::stride(), Self::position_offset())?;
+        array.set_attribute(1, 4, rgl::AttributeType::UByte, true, Self::stride(), Self::color_offset())?;
+
+        Ok(array)
+    }
+
+
+    pub fn stride() -> usize {
+        mem::size_of::<DebugVertex>()
+    }
+
+
+    pub fn position_offset() -> usize {
+        let vertex = DebugVertex::new((0.0, 0.0), 0, 0, 0, 0);
+        &vertex.x as *const _ as usize - &vertex as *const _ as usize
+    }
+
+
+    pub fn color_offset() -> usize {
+        let vertex = DebugVertex::new((0.0, 0.0), 0, 0, 0, 0);
         &vertex.r as *const _ as usize - &vertex as *const _ as usize
     }
 }

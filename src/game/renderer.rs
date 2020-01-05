@@ -1,10 +1,12 @@
-use std::{error::Error, time};
+use std::error::Error;
 
 extern crate image;
 
 use lib::rgl;
 
 mod vertex;
+
+mod debug;
 
 mod ground;
 use ground::Ground;
@@ -16,8 +18,9 @@ use super::state;
 
 
 pub struct Renderer {
-    start_time: time::Instant,
-    program: rgl::Program,
+    sprite_program: rgl::Program,
+    debug_program: rgl::Program,
+    debug_renderer: debug::Renderer,
     ground_sprite: rgl::Texture,
     ground: Ground,
     cat_sprite: rgl::Texture,
@@ -32,7 +35,18 @@ impl Renderer {
             rgl::BlendFactor::OneMinusSourceAlpha
         )))?;
 
-        let program = Self::create_program()?;
+        let mut sprite_program = Self::create_program(
+            include_str!("renderer/sprite.vert"),
+            include_str!("renderer/sprite.frag")
+        )?;
+        sprite_program.set_uniform("texture0", rgl::Uniform::Integer1(0))?;
+
+        let debug_program = Self::create_program(
+            include_str!("renderer/debug.vert"),
+            include_str!("renderer/debug.frag")
+        )?;
+
+        let debug_renderer = debug::Renderer::new()?;
 
         let ground_sprite = Self::load_texture("img/ground.png")?;
         let ground = Ground::new()?;
@@ -41,8 +55,9 @@ impl Renderer {
         let cat = NoodleCat::new()?;
 
         Ok(Renderer {
-            start_time: time::Instant::now(),
-            program,
+            sprite_program,
+            debug_program,
+            debug_renderer,
             ground_sprite,
             ground,
             cat_sprite,
@@ -51,23 +66,19 @@ impl Renderer {
     }
 
 
-    fn create_program() -> Result<rgl::Program, rgl::GLError> {
+    fn create_program(vertex_source: &str, fragment_source: &str) -> Result<rgl::Program, rgl::GLError> {
         let mut vertex_shader = rgl::Shader::new(rgl::ShaderType::Vertex)?;
-        let source = include_str!("sprite.vert");
-        vertex_shader.set_source(source)?;
+        vertex_shader.set_source(vertex_source)?;
         vertex_shader.compile()?;
 
         let mut fragment_shader = rgl::Shader::new(rgl::ShaderType::Fragment)?;
-        let source = include_str!("sprite.frag");
-        fragment_shader.set_source(source)?;
+        fragment_shader.set_source(fragment_source)?;
         fragment_shader.compile()?;
 
         let mut program = rgl::Program::new()?;
         program.attach_shader(&vertex_shader)?;
         program.attach_shader(&fragment_shader)?;
         program.link()?;
-
-        program.set_uniform("texture0", rgl::Uniform::Integer1(0))?;
 
         Ok(program)
     }
@@ -106,19 +117,21 @@ impl Renderer {
 
 
     pub fn render(&mut self, state: &mut state::State) -> Result<(), Box<dyn Error>> {
-        let _time = self.start_time.elapsed().as_secs_f64();
+        let cat = &state.cat;
+
         let zoom = 0.2;
+        let camera = cat.path.back().unwrap();
+
+        self.debug_renderer.update(&mut state.debug)?;
 
         self.ground.update(&mut state.ground)?;
 
-        let cat = &state.cat;
         self.cat.update(&state.cat)?;
 
         rgl::clear(0.2, 0.15, 0.3, 1.0)?;
 
-        self.program.use_program()?;
-        let camera = cat.path.back().unwrap();
-        self.set_transform(zoom, -camera.x, -camera.y, 1.0, 0.0)?;
+        self.sprite_program.use_program()?;
+        Self::set_transform(&mut self.sprite_program, zoom, -camera.x, -camera.y, 1.0, 0.0)?;
 
         self.cat_sprite.bind(0)?;
         self.cat.render()?;
@@ -129,18 +142,24 @@ impl Renderer {
         self.cat_sprite.bind(0)?;
         self.cat.render_near()?;
 
+        self.debug_program.use_program()?;
+        Self::set_transform(&mut self.debug_program, zoom, -camera.x, -camera.y, 1.0, 0.0)?;
+        self.debug_renderer.render()?;
+
         Ok(())
     }
 
 
-    fn set_transform(&mut self, zoom: f32, x: f32, y: f32, scale: f32, angle: f32) -> Result<(), rgl::GLError> {
+    fn set_transform(program: &mut rgl::Program, zoom: f32, x: f32, y: f32, scale: f32, angle: f32)
+        -> Result<(), rgl::GLError>
+    {
         let aspect = 9.0 / 16.0;
         let transform = rgl::Uniform::Matrix3x2([
             (angle.cos() * scale * aspect * zoom, -angle.sin() * scale * zoom),
             (angle.sin() * scale * aspect * zoom, angle.cos() * scale * zoom),
             (x * aspect * zoom, y * zoom)
         ]);
-        self.program.set_uniform("transform", transform)?;
+        program.set_uniform("transform", transform)?;
         Ok(())
     }
 }

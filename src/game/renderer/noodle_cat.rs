@@ -1,7 +1,7 @@
 use lib::rgl;
 use lib::math::{Vec2, vec2};
 
-use super::vertex::{self, Vertex};
+use super::vertex::Vertex;
 
 use super::state;
 
@@ -16,7 +16,7 @@ pub struct NoodleCat {
 
 impl NoodleCat {
     pub fn new() -> Result<NoodleCat, rgl::GLError> {
-        let vertex_array = vertex::create_array(&[], rgl::BufferUsage::StreamDraw)?;
+        let vertex_array = Vertex::create_array(&[], rgl::BufferUsage::StreamDraw)?;
 
         Ok(NoodleCat {
             vertex_array,
@@ -243,14 +243,14 @@ impl NoodleCat {
 
     pub fn render(&self) -> Result<(), rgl::GLError> {
         self.vertex_array.bind()?;
-        rgl::draw(0, self.vertices as _)?;
+        rgl::draw(rgl::DrawMode::Triangles, 0, self.vertices as _)?;
         Ok(())
     }
 
 
     pub fn render_near(&self) -> Result<(), rgl::GLError> {
         self.vertex_array.bind()?;
-        rgl::draw(self.near_start as _, self.near_count as _)?;
+        rgl::draw(rgl::DrawMode::Triangles, self.near_start as _, self.near_count as _)?;
         Ok(())
     }
 }
