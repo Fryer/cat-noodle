@@ -1,7 +1,8 @@
 use wrapped2d::b2;
 use wrapped2d::dynamics::world::{BodyHandle, JointHandle};
+use wrapped2d::dynamics::body::FixtureHandle;
 
-use lib::math::{Vec2, wrap_angle};
+use lib::math::{Vec2, vec2, wrap_angle};
 
 use super::B2World;
 use super::state;
@@ -11,6 +12,7 @@ pub struct NoodleCat {
     links: Vec<BodyHandle>,
     muscles: Vec<JointHandle>,
     tail_links: Vec<BodyHandle>,
+    head_sensor: FixtureHandle,
     _grip: Option<JointHandle>,
     touching: bool
 }
@@ -151,12 +153,13 @@ impl NoodleCat {
         let mut fixture = b2::FixtureDef::new();
         fixture.is_sensor = true;
         fixture.filter.group_index = -1;
-        world.body_mut(head).create_fixture(&circle, &mut fixture);
+        let head_sensor = world.body_mut(head).create_fixture(&circle, &mut fixture);
 
         NoodleCat {
             links,
             muscles,
             tail_links,
+            head_sensor,
             _grip: None,
             touching: false
         }
@@ -173,6 +176,73 @@ impl NoodleCat {
             let body = world.body(link);
             p.x = body.position().x;
             p.y = body.position().y;
+        }
+    }
+
+
+    pub fn debug(&self, world: &mut B2World, info: &mut state::DebugInfo) {
+        let head = self.links.last().copied().unwrap();
+        let mut head_body = world.body_mut(head);
+        let head_transform = head_body.transform().clone();
+        let head_radius = match &*head_body.fixture(self.head_sensor).shape() {
+            b2::UnknownShape::Circle(circle) => circle.radius(),
+            _ => b2::POLYGON_RADIUS
+        };
+        for (_, mut contact) in unsafe { head_body.contacts_mut() } {
+            if !contact.is_touching() {
+                continue;
+            }
+            let (other, is_head_a) = {
+                if self.head_sensor == contact.fixture_a().1 {
+                    (contact.fixture_b(), true)
+                }
+                else if self.head_sensor == contact.fixture_b().1 {
+                    (contact.fixture_a(), false)
+                }
+                else {
+                    continue
+                }
+            };
+            let other_body = world.body(other.0);
+            let other_transform = other_body.transform();
+            let other_radius = match &*other_body.fixture(other.1).shape() {
+                b2::UnknownShape::Circle(circle) => circle.radius(),
+                _ => b2::POLYGON_RADIUS
+            };
+            let transform_a = if is_head_a { &head_transform } else { other_transform };
+            let radius_a = if is_head_a { head_radius } else { other_radius };
+            let transform_b = if is_head_a { other_transform } else { &head_transform };
+            let radius_b = if is_head_a { other_radius } else { head_radius };
+            let manifold = contact.evaluate(transform_a, transform_b);
+            let points = manifold.count;
+            let manifold = manifold.world_manifold(transform_a, radius_a, transform_b, radius_b);
+            let p1 = manifold.points[0];
+            let p2 = if points == 2 { manifold.points[1] } else { p1 };
+            let g = if points == 2 { 127 } else { 0 };
+            info.shapes.push_back((
+                state::DebugShape::Circle(
+                    p1.x, p1.y, 0.1
+                ), state::DebugColor(255, g, 0, 255)
+            ));
+            if points == 2 {
+                info.shapes.push_back((
+                    state::DebugShape::Circle(
+                        p2.x, p2.y, 0.1
+                    ), state::DebugColor(0, 127, 255, 255)
+                ));
+                info.shapes.push_back((
+                    state::DebugShape::Line(
+                        p1.x, p1.y, p2.x, p2.y
+                    ), state::DebugColor(255, 0, 0, 255)
+                ));
+            }
+            let p1 = vec2(p1.x + p2.x, p1.y + p2.y) * 0.5;
+            let p2 = p1 + vec2(manifold.normal.x, manifold.normal.y);
+            info.shapes.push_back((
+                state::DebugShape::Line(
+                    p1.x, p1.y, p2.x, p2.y
+                ), state::DebugColor(0, 255, 0, 255)
+            ));
         }
     }
 

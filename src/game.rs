@@ -125,7 +125,7 @@ impl Game {
             delta_time -= step_time;
         }
 
-        self.physics.update_debug(&mut self.state.debug);
+        self.physics.debug(&mut self.state.debug);
         self.renderer.render(&mut self.state)?;
         Ok(true)
     }

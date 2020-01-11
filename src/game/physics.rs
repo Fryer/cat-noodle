@@ -60,8 +60,9 @@ impl World {
     }
 
 
-    pub fn update_debug(&mut self, info: &mut state::DebugInfo) {
-        self.world.draw_debug_data(&mut DebugDraw { info }, b2::DrawFlags::all());
+    pub fn debug(&mut self, info: &mut state::DebugInfo) {
+        self.world.draw_debug_data(&mut DebugDraw { info }, b2::DRAW_SHAPE);
+        self.cat.debug(&mut self.world, info);
     }
 }
 
