@@ -1,6 +1,9 @@
 use wrapped2d::b2;
 use wrapped2d::user_data::NoUserData;
 use wrapped2d::dynamics::world::BodyHandle;
+use wrapped2d::dynamics::contacts::Contact;
+
+use lib::math::vec2;
 
 mod noodle_cat;
 use noodle_cat::NoodleCat;
@@ -18,6 +21,33 @@ pub struct World {
 
 struct DebugDraw<'a> {
     info: &'a mut state::DebugInfo
+}
+
+
+fn evaluate_contact(world: &B2World, contact: &Contact) -> (i32, b2::WorldManifold) {
+    let body = world.body(contact.fixture_a().0);
+    let transform_a = body.transform();
+    let radius_a = match &*body.fixture(contact.fixture_a().1).shape() {
+        b2::UnknownShape::Circle(circle) => circle.radius(),
+        _ => b2::POLYGON_RADIUS
+    };
+    let body = world.body(contact.fixture_b().0);
+    let transform_b = body.transform();
+    let radius_b = match &*body.fixture(contact.fixture_b().1).shape() {
+        b2::UnknownShape::Circle(circle) => circle.radius(),
+        _ => b2::POLYGON_RADIUS
+    };
+    let manifold = unsafe {
+        use wrapped2d::dynamics::contacts::ffi;
+        use wrapped2d::wrap::Wrapped;
+        let mut m = std::mem::MaybeUninit::uninit();
+        // Converting from *const to *mut here is not UB.
+        // Evaluating a contact doesn't mutate it, but Box2D incorrectly takes a non-const pointer,
+        // and wrapper2d does not correct this.
+        ffi::Contact_evaluate_virtual(contact.ptr() as *mut _, m.as_mut_ptr(), transform_a, transform_b);
+        m.assume_init()
+    };
+    (manifold.count, manifold.world_manifold(transform_a, radius_a, transform_b, radius_b))
 }
 
 
@@ -62,7 +92,40 @@ impl World {
 
     pub fn debug(&mut self, info: &mut state::DebugInfo) {
         self.world.draw_debug_data(&mut DebugDraw { info }, b2::DRAW_SHAPE);
-        self.cat.debug(&mut self.world, info);
+        self.debug_contacts(info);
+    }
+
+
+    fn debug_contacts(&mut self, info: &mut state::DebugInfo) {
+        for contact in self.world.contacts() {
+            if !contact.is_touching() {
+                continue;
+            }
+            let (points, manifold) = evaluate_contact(&self.world, &*contact);
+            let mut p1 = vec2(manifold.points[0].x, manifold.points[0].y);
+            if points == 1 {
+                info.shapes.push_back((
+                    state::DebugShape::Circle(
+                        manifold.points[0].x, manifold.points[0].y, 0.05
+                    ), state::DebugColor(255, 0, 0, 255)
+                ));
+            }
+            else {
+                info.shapes.push_back((
+                    state::DebugShape::Line(
+                        manifold.points[0].x, manifold.points[0].y, manifold.points[1].x, manifold.points[1].y
+                    ), state::DebugColor(255, 0, 0, 255)
+                ));
+                p1 += vec2(manifold.points[1].x, manifold.points[1].y);
+                p1 *= 0.5;
+            }
+            let p2 = p1 + vec2(manifold.normal.x, manifold.normal.y);
+            info.shapes.push_back((
+                state::DebugShape::Line(
+                    p1.x, p1.y, p2.x, p2.y
+                ), state::DebugColor(0, 255, 0, 255)
+            ));
+        }
     }
 }
 
