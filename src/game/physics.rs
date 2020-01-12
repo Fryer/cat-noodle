@@ -24,6 +24,17 @@ struct DebugDraw<'a> {
 }
 
 
+fn b2_get_local_point(body: &b2::Body, world_point: &b2::Vec2) -> b2::Vec2 {
+    let t = body.transform();
+    let px = world_point.x - t.pos.x;
+    let py = world_point.y - t.pos.y;
+    b2::Vec2 {
+        x: t.rot.cos * px + t.rot.sin * py,
+        y: -t.rot.sin * px + t.rot.cos * py
+    }
+}
+
+
 fn evaluate_contact(world: &B2World, contact: &Contact) -> (i32, b2::WorldManifold) {
     let body = world.body(contact.fixture_a().0);
     let transform_a = body.transform();
@@ -91,7 +102,7 @@ impl World {
 
 
     pub fn debug(&mut self, info: &mut state::DebugInfo) {
-        self.world.draw_debug_data(&mut DebugDraw { info }, b2::DRAW_SHAPE);
+        self.world.draw_debug_data(&mut DebugDraw { info }, b2::DRAW_SHAPE | b2::DRAW_JOINT);
         self.debug_contacts(info);
     }
 

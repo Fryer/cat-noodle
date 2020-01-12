@@ -2,10 +2,14 @@ use wrapped2d::b2;
 use wrapped2d::dynamics::world::{BodyHandle, JointHandle};
 use wrapped2d::dynamics::body::FixtureHandle;
 
-use lib::math::{Vec2, wrap_angle};
+use lib::math::{Vec2, vec2, wrap_angle};
 
 use super::B2World;
-use super::{state, evaluate_contact};
+use super::{
+    state,
+    b2_get_local_point,
+    evaluate_contact
+};
 
 
 pub struct NoodleCat {
@@ -13,7 +17,8 @@ pub struct NoodleCat {
     muscles: Vec<JointHandle>,
     tail_links: Vec<BodyHandle>,
     head_sensor: FixtureHandle,
-    touching: bool
+    grab: Option<JointHandle>,
+    grabbed: Option<BodyHandle>
 }
 
 
@@ -159,7 +164,8 @@ impl NoodleCat {
             muscles,
             tail_links,
             head_sensor,
-            touching: false
+            grab: None,
+            grabbed: None
         }
     }
 
@@ -179,28 +185,6 @@ impl NoodleCat {
 
 
     pub fn control(&mut self, world: &mut B2World, cat: &state::Cat) {
-        let mut separation = std::f32::INFINITY;
-        let head = self.links.last().copied().unwrap();
-        for (_, contact) in world.body(head).contacts() {
-            if !contact.is_touching() {
-                continue;
-            }
-            if self.head_sensor != contact.fixture_a().1 && self.head_sensor != contact.fixture_b().1 {
-                continue;
-            }
-            let (_, manifold) = evaluate_contact(world, &*contact);
-            if manifold.separations[0] < separation {
-                separation = manifold.separations[0];
-            }
-        }
-        if separation.is_finite() && !self.touching {
-            println!("sensor touching");
-        }
-        else if separation.is_infinite() && self.touching {
-            println!("sensor not touching");
-        }
-        self.touching = separation.is_finite();
-
         let p3_iter = cat.path.iter().copied()
             .zip(cat.path.iter().copied().skip(1))
             .zip(cat.path.iter().copied().skip(2));
@@ -220,6 +204,82 @@ impl NoodleCat {
             .enumerate()
             .map(|(n, ((muscle, angle), p))| (n, muscle, angle, p));
 
+        let mut separation = std::f32::INFINITY;
+        let mut other = None;
+        let mut normal = vec2(0.0, 0.0);
+        let head = self.links.last().copied().unwrap();
+        for (_, contact) in world.body(head).contacts() {
+            if !contact.is_touching() {
+                continue;
+            }
+            let is_a_sensor = contact.fixture_a().0 == head && contact.fixture_a().1 == self.head_sensor;
+            let is_b_sensor = contact.fixture_b().0 == head && contact.fixture_b().1 == self.head_sensor;
+            if !is_a_sensor && !is_b_sensor {
+                continue;
+            }
+            let (_, manifold) = evaluate_contact(world, &*contact);
+            if manifold.separations[0] < separation {
+                separation = manifold.separations[0];
+                if is_a_sensor {
+                    other = Some(contact.fixture_b().0);
+                    normal = vec2(manifold.normal.x, manifold.normal.y);
+                }
+                else {
+                    other = Some(contact.fixture_a().0);
+                    normal = -vec2(manifold.normal.x, manifold.normal.y);
+                }
+            }
+        }
+        let mut grab = true;
+        if let Some(direction) = cat.direction {
+            if separation.is_finite() && Vec2::from_angle(direction).dot(normal) < -0.8 {
+                grab = false;
+            }
+            else {
+                grab = separation.is_finite();
+            }
+        }
+        else if self.grab.is_none() {
+            grab = false;
+        }
+        if grab {
+            if let Some(grab) = self.grab {
+                world.destroy_joint(grab);
+            }
+            else {
+                println!("grab");
+            }
+            let other = if cat.direction.is_some() { other.unwrap() } else { self.grabbed.unwrap() };
+            let head_body = world.body(head);
+            let other_body = world.body(other);
+            let head_anchor = head_body.transform().pos;
+            let mut other_anchor = head_anchor;
+            if let Some(direction) = cat.direction {
+                let d = Vec2::from_angle(direction) * 5.0 / 480.0;
+                other_anchor.x += d.x;
+                other_anchor.y += d.y;
+            }
+            let def = b2::RevoluteJointDef {
+                collide_connected: true,
+                local_anchor_a: b2_get_local_point(&*head_body, &head_anchor),
+                local_anchor_b: b2_get_local_point(&*other_body, &other_anchor),
+                ..b2::RevoluteJointDef::new(head, other)
+            };
+            drop(head_body);
+            drop(other_body);
+            self.grab = Some(world.create_joint(&def));
+            self.grabbed = Some(other);
+        }
+        else if let Some(grab) = self.grab {
+            println!("release");
+            world.destroy_joint(grab);
+            self.grab = None;
+        }
+
+        if grab {
+            Self::control_relaxed(world, &mut control_iter);
+            return;
+        }
         if let Some(direction) = cat.direction {
             if cat.flying {
                 let mut body = world.body_mut(*self.links.last().unwrap());
