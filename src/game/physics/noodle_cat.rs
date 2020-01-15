@@ -7,6 +7,8 @@ use lib::math::{Vec2, vec2, wrap_angle};
 use super::B2World;
 use super::{
     state,
+    to_vec2,
+    to_bvec,
     b2_get_local_point,
     evaluate_contact
 };
@@ -185,25 +187,6 @@ impl NoodleCat {
 
 
     pub fn control(&mut self, world: &mut B2World, cat: &state::Cat) {
-        let p3_iter = cat.path.iter().copied()
-            .zip(cat.path.iter().copied().skip(1))
-            .zip(cat.path.iter().copied().skip(2));
-        let angle_iter = p3_iter.map(|((p, p2), p3)| {
-            let d = p2 - p;
-            let d2 = p3 - p2;
-            if d.length() >= std::f32::EPSILON * 1000.0 && d2.length() >= std::f32::EPSILON * 1000.0 {
-                d2.unrotated(d.normalized()).to_angle()
-            }
-            else { 0.0 }
-        });
-        let muscle_iter = self.muscles.iter().copied();
-        let p_iter = cat.path.iter().copied();
-        let mut control_iter = muscle_iter.rev()
-            .zip(angle_iter.rev())
-            .zip(p_iter.rev().skip(1))
-            .enumerate()
-            .map(|(n, ((muscle, angle), p))| (n, muscle, angle, p));
-
         let mut separation = std::f32::INFINITY;
         let mut other = None;
         let mut normal = vec2(0.0, 0.0);
@@ -218,6 +201,8 @@ impl NoodleCat {
                 continue;
             }
             let (_, manifold) = evaluate_contact(world, &*contact);
+            // TODO: Prioritize contacts according to direction of movement and currently grabbed body.
+            // Select the closest contact.
             if manifold.separations[0] < separation {
                 separation = manifold.separations[0];
                 if is_a_sensor {
@@ -230,17 +215,16 @@ impl NoodleCat {
                 }
             }
         }
-        let mut grab = true;
-        if let Some(direction) = cat.direction {
-            if separation.is_finite() && Vec2::from_angle(direction).dot(normal) < -0.8 {
+        // Grab if the paws can reach the ground and the direction of movement is not pointing away from it.
+        // Release if the direction of movement points away from the ground.
+        let mut grab = separation < -0.3 || (self.grab.is_some() && separation.is_finite());
+        if grab {
+            if let Some(direction) = cat.direction {
+                grab = Vec2::from_angle(direction).dot(normal) > -0.8;
+            }
+            else if self.grab.is_none() {
                 grab = false;
             }
-            else {
-                grab = separation.is_finite();
-            }
-        }
-        else if self.grab.is_none() {
-            grab = false;
         }
         if grab {
             if let Some(grab) = self.grab {
@@ -252,17 +236,21 @@ impl NoodleCat {
             let other = if cat.direction.is_some() { other.unwrap() } else { self.grabbed.unwrap() };
             let head_body = world.body(head);
             let other_body = world.body(other);
-            let head_anchor = head_body.transform().pos;
+            let head_anchor = to_vec2(head_body.transform().pos);
             let mut other_anchor = head_anchor;
             if let Some(direction) = cat.direction {
+                // Keep separation constant.
+                other_anchor += normal * (separation + 0.3);
+                // Project movement onto the contact tangent.
+                // TODO: Rotate the head instead when moving backwards or into the ground.
                 let d = Vec2::from_angle(direction) * 5.0 / 480.0;
-                other_anchor.x += d.x;
-                other_anchor.y += d.y;
+                let tangent = normal.rotated(vec2(0.0, 1.0));
+                other_anchor += tangent.dot(d) * tangent;
             }
             let def = b2::RevoluteJointDef {
                 collide_connected: true,
-                local_anchor_a: b2_get_local_point(&*head_body, &head_anchor),
-                local_anchor_b: b2_get_local_point(&*other_body, &other_anchor),
+                local_anchor_a: b2_get_local_point(&*head_body, &to_bvec(head_anchor)),
+                local_anchor_b: b2_get_local_point(&*other_body, &to_bvec(other_anchor)),
                 ..b2::RevoluteJointDef::new(head, other)
             };
             drop(head_body);
@@ -276,8 +264,10 @@ impl NoodleCat {
             self.grab = None;
         }
 
+        let mut control_iter = self.make_control_iter(cat);
         if grab {
             Self::control_relaxed(world, &mut control_iter);
+            // TODO: Move the body links towards the head if there is stretching.
             return;
         }
         if let Some(direction) = cat.direction {
@@ -287,11 +277,36 @@ impl NoodleCat {
                 body.set_linear_velocity(&b2::Vec2 { x: d.x, y: d.y });
             }
             else {
+                // TODO: Apply small air swimming force.
                 let head_p = cat.path.back().copied().unwrap();
                 Self::control_movement(world, cat.path.len(), direction, head_p, &mut control_iter);
             }
         }
         Self::control_relaxed(world, &mut control_iter);
+    }
+
+
+    fn make_control_iter<'a>(&'a self, cat: &'a state::Cat)
+        -> impl Iterator<Item = (usize, JointHandle, f32, Vec2)> + Clone + 'a
+    {
+        let p3_iter = cat.path.iter().copied()
+            .zip(cat.path.iter().copied().skip(1))
+            .zip(cat.path.iter().copied().skip(2));
+        let angle_iter = p3_iter.map(|((p, p2), p3)| {
+            let d = p2 - p;
+            let d2 = p3 - p2;
+            if d.length() >= std::f32::EPSILON * 1000.0 && d2.length() >= std::f32::EPSILON * 1000.0 {
+                d2.unrotated(d.normalized()).to_angle()
+            }
+            else { 0.0 }
+        });
+        let muscle_iter = self.muscles.iter().copied();
+        let p_iter = cat.path.iter().copied();
+        muscle_iter.rev()
+            .zip(angle_iter.rev())
+            .zip(p_iter.rev().skip(1))
+            .enumerate()
+            .map(|(n, ((muscle, angle), p))| (n, muscle, angle, p))
     }
 
 

@@ -3,7 +3,7 @@ use wrapped2d::user_data::NoUserData;
 use wrapped2d::dynamics::world::BodyHandle;
 use wrapped2d::dynamics::contacts::Contact;
 
-use lib::math::vec2;
+use lib::math::{Vec2, vec2};
 
 mod noodle_cat;
 use noodle_cat::NoodleCat;
@@ -21,6 +21,16 @@ pub struct World {
 
 struct DebugDraw<'a> {
     info: &'a mut state::DebugInfo
+}
+
+
+fn to_vec2(vector: b2::Vec2) -> Vec2 {
+    vec2(vector.x, vector.y)
+}
+
+
+fn to_bvec(vector: Vec2) -> b2::Vec2 {
+    b2::Vec2 { x: vector.x, y: vector.y }
 }
 
 
