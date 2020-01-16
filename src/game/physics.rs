@@ -96,8 +96,8 @@ impl World {
             self.world.destroy_body(self.ground);
             self.ground = self.world.create_body(&b2::BodyDef::new());
             let mut body = self.world.body_mut(self.ground);
-            for p in ground.boxes.iter() {
-                let square = b2::PolygonShape::new_oriented_box(0.5, 0.5, &b2::Vec2 { x: p.x, y: p.y }, 0.0);
+            for p in ground.boxes.iter().copied() {
+                let square = b2::PolygonShape::new_oriented_box(0.5, 0.5, &to_bvec(p), 0.0);
                 body.create_fast_fixture(&square, 1.0);
             }
             ground.dirty -= state::DirtyFlags::PHYSICS;
@@ -123,7 +123,7 @@ impl World {
                 continue;
             }
             let (points, manifold) = evaluate_contact(&self.world, &*contact);
-            let mut p1 = vec2(manifold.points[0].x, manifold.points[0].y);
+            let mut p1 = to_vec2(manifold.points[0]);
             if points == 1 {
                 info.shapes.push_back((
                     state::DebugShape::Circle(
@@ -137,10 +137,10 @@ impl World {
                         manifold.points[0].x, manifold.points[0].y, manifold.points[1].x, manifold.points[1].y
                     ), state::DebugColor(255, 0, 0, 255)
                 ));
-                p1 += vec2(manifold.points[1].x, manifold.points[1].y);
+                p1 += to_vec2(manifold.points[1]);
                 p1 *= 0.5;
             }
-            let p2 = p1 + vec2(manifold.normal.x, manifold.normal.y);
+            let p2 = p1 + to_vec2(manifold.normal);
             info.shapes.push_back((
                 state::DebugShape::Line(
                     p1.x, p1.y, p2.x, p2.y

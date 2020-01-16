@@ -32,7 +32,7 @@ impl NoodleCat {
         let mut link = world.create_body(
             &b2::BodyDef {
                 body_type: b2::BodyType::Dynamic,
-                position: b2::Vec2 { x: path[0].x, y: path[0].y },
+                position: to_bvec(path[0]),
                 linear_damping: 2.0,
                 angular_damping: 1.0,
                 ..b2::BodyDef::new()
@@ -52,7 +52,7 @@ impl NoodleCat {
             let next = world.create_body(
                 &b2::BodyDef {
                     body_type: b2::BodyType::Dynamic,
-                    position: b2::Vec2 { x: p.x, y: p.y },
+                    position: to_bvec(p),
                     linear_damping: 2.0,
                     angular_damping: 1.0,
                     ..b2::BodyDef::new()
@@ -62,7 +62,7 @@ impl NoodleCat {
             let d = p - p2;
             world.create_joint(
                 &b2::RevoluteJointDef {
-                    local_anchor_b: b2::Vec2 { x: d.x, y: d.y },
+                    local_anchor_b: to_bvec(d),
                     lower_angle: -std::f32::consts::PI * 0.06,
                     upper_angle: std::f32::consts::PI * 0.06,
                     enable_limit: true,
@@ -88,7 +88,7 @@ impl NoodleCat {
         let mut link = world.create_body(
             &b2::BodyDef {
                 body_type: b2::BodyType::Dynamic,
-                position: b2::Vec2 { x: tail[0].x, y: tail[0].y },
+                position: to_bvec(tail[0]),
                 linear_damping: 2.0,
                 angular_damping: 1.0,
                 gravity_scale: 0.1,
@@ -98,7 +98,7 @@ impl NoodleCat {
         let d = path[0] - tail[0];
         world.create_joint(
             &b2::RevoluteJointDef {
-                local_anchor_b: b2::Vec2 { x: d.x, y: d.y },
+                local_anchor_b: to_bvec(d),
                 lower_angle: -std::f32::consts::PI * 0.25,
                 upper_angle: std::f32::consts::PI * 0.25,
                 enable_limit: true,
@@ -125,7 +125,7 @@ impl NoodleCat {
             let next = world.create_body(
                 &b2::BodyDef {
                     body_type: b2::BodyType::Dynamic,
-                    position: b2::Vec2 { x: p.x, y: p.y },
+                    position: to_bvec(p),
                     linear_damping: 2.0,
                     angular_damping: 1.0,
                     gravity_scale: 0.1,
@@ -136,7 +136,7 @@ impl NoodleCat {
             let d = p - p2;
             world.create_joint(
                 &b2::RevoluteJointDef {
-                    local_anchor_b: b2::Vec2 { x: d.x, y: d.y },
+                    local_anchor_b: to_bvec(d),
                     lower_angle: -std::f32::consts::PI * 0.1,
                     upper_angle: std::f32::consts::PI * 0.1,
                     enable_limit: true,
@@ -207,11 +207,11 @@ impl NoodleCat {
                 separation = manifold.separations[0];
                 if is_a_sensor {
                     other = Some(contact.fixture_b().0);
-                    normal = vec2(manifold.normal.x, manifold.normal.y);
+                    normal = to_vec2(manifold.normal);
                 }
                 else {
                     other = Some(contact.fixture_a().0);
-                    normal = -vec2(manifold.normal.x, manifold.normal.y);
+                    normal = -to_vec2(manifold.normal);
                 }
             }
         }
@@ -274,12 +274,11 @@ impl NoodleCat {
             if cat.flying {
                 let mut body = world.body_mut(*self.links.last().unwrap());
                 let d = Vec2::from_angle(direction) * 5.0;
-                body.set_linear_velocity(&b2::Vec2 { x: d.x, y: d.y });
+                body.set_linear_velocity(&to_bvec(d));
             }
             else {
                 // TODO: Apply small air swimming force.
-                let head_p = cat.path.back().copied().unwrap();
-                Self::control_movement(world, cat.path.len(), direction, head_p, &mut control_iter);
+                Self::control_movement(world, cat, &mut control_iter);
             }
         }
         Self::control_relaxed(world, &mut control_iter);
@@ -328,14 +327,13 @@ impl NoodleCat {
 
     fn control_movement<I: Iterator<Item = (usize, JointHandle, f32, Vec2)> + Clone>(
         world: &mut B2World,
-        cat_length: usize,
-        direction: f32,
-        head_p: Vec2,
+        cat: &state::Cat,
         control_iter: &mut I
     ) {
-        let mut head_p = head_p;
+        let direction = cat.direction.unwrap();
+        let mut head_p = cat.path.back().copied().unwrap();
         if let Some((n, _, _, _)) = control_iter.clone().next() {
-            if n >= cat_length * 2 / 3 {
+            if n >= cat.path.len() * 2 / 3 {
                 return;
             }
         }
@@ -354,13 +352,13 @@ impl NoodleCat {
             let offset = wrap_angle(angle + direction - head_lp.to_angle())
                 .max(-std::f32::consts::PI * 0.06).min(std::f32::consts::PI * 0.06);
             let mut factor = 1.0;
-            if n > cat_length / 3 {
-                factor = (cat_length * 2 / 3 - n) as f32 * 3.0 / cat_length as f32;
+            if n > cat.path.len() / 3 {
+                factor = (cat.path.len() * 2 / 3 - n) as f32 * 3.0 / cat.path.len() as f32;
             }
             motor.set_angular_offset(offset * factor);
             motor.set_max_torque(10.0 + 100.0 * factor);
             head_p = head_lp.rotated(Vec2::from_angle(offset - angle)) + p;
-            if n >= cat_length * 2 / 3 {
+            if n >= cat.path.len() * 2 / 3 {
                 break;
             }
         }
