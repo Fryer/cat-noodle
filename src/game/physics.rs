@@ -80,6 +80,37 @@ impl World {
 
         let cat = NoodleCat::new(&mut world, &state.cat);
 
+        let test = world.create_body(&b2::BodyDef {
+            body_type: b2::BodyType::Dynamic,
+            position: b2::Vec2 { x: 26.5, y: -9.0 },
+            ..b2::BodyDef::new()
+        });
+        let mut body = world.body_mut(test);
+        let circle = b2::CircleShape::new_with(b2::Vec2 { x: 0.0, y: 0.0 }, 0.5);
+        body.create_fast_fixture(&circle, 1.0);
+        drop(body);
+
+        let test = world.create_body(&b2::BodyDef {
+            body_type: b2::BodyType::Dynamic,
+            position: b2::Vec2 { x: 26.5, y: -10.0 },
+            ..b2::BodyDef::new()
+        });
+        let mut body = world.body_mut(test);
+        let square = b2::PolygonShape::new_box(0.5, 0.5);
+        body.create_fast_fixture(&square, 1.0);
+        drop(body);
+
+        let test = world.create_body(&b2::BodyDef {
+            body_type: b2::BodyType::Kinematic,
+            position: b2::Vec2 { x: 25.5, y: -6.0 },
+            angular_velocity: std::f32::consts::PI * 0.25,
+            ..b2::BodyDef::new()
+        });
+        let mut body = world.body_mut(test);
+        let rectangle = b2::PolygonShape::new_box(2.0, 0.5);
+        body.create_fast_fixture(&rectangle, 1.0);
+        drop(body);
+
         World {
             world,
             ground,

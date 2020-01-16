@@ -200,6 +200,12 @@ impl NoodleCat {
             if !is_a_sensor && !is_b_sensor {
                 continue;
             }
+            if is_a_sensor && world.body(contact.fixture_b().0).body_type() == b2::BodyType::Dynamic {
+                continue;
+            }
+            if is_b_sensor && world.body(contact.fixture_a().0).body_type() == b2::BodyType::Dynamic {
+                continue;
+            }
             let (_, manifold) = evaluate_contact(world, &*contact);
             // TODO: Prioritize contacts according to direction of movement and currently grabbed body.
             // Select the closest contact.
@@ -243,7 +249,7 @@ impl NoodleCat {
                 other_anchor += normal * (separation + 0.3);
                 // Project movement onto the contact tangent.
                 // TODO: Rotate the head instead when moving backwards or into the ground.
-                let d = Vec2::from_angle(direction) * 5.0 / 480.0;
+                let d = Vec2::from_angle(direction) * 3.0 / 480.0;
                 let tangent = normal.rotated(vec2(0.0, 1.0));
                 other_anchor += tangent.dot(d) * tangent;
             }
