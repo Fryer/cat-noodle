@@ -277,13 +277,16 @@ impl NoodleCat {
             return;
         }
         if let Some(direction) = cat.direction {
+            let mut body = world.body_mut(*self.links.last().unwrap());
+            let d = Vec2::from_angle(direction);
             if cat.flying {
-                let mut body = world.body_mut(*self.links.last().unwrap());
-                let d = Vec2::from_angle(direction) * 5.0;
-                body.set_linear_velocity(&to_bvec(d));
+                body.set_linear_velocity(&to_bvec(d * 5.0));
             }
             else {
-                // TODO: Apply small air swimming force.
+                // Apply swimming force proportional to cat length.
+                let force = cat.path.len() as f32;
+                body.apply_force_to_center(&to_bvec(d * force), true);
+                drop(body);
                 Self::control_movement(world, cat, &mut control_iter);
             }
         }

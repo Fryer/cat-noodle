@@ -62,7 +62,7 @@ impl Game {
             if tile.1 == 'P' { Some(tile.0) }
             else { None }
         }).unwrap();
-        let path: VecDeque<_> = (0..150).map(|x|
+        let path: VecDeque<_> = (0..80).map(|x|
             vec2(
                 x as f32 * 0.1 + 2.0,
                 0.0
