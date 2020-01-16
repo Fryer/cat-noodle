@@ -273,7 +273,7 @@ impl NoodleCat {
         let mut control_iter = self.make_control_iter(cat);
         if grab {
             Self::control_relaxed(world, &mut control_iter);
-            // TODO: Move the body links towards the head if there is stretching.
+            self.follow_head(world, &cat);
             return;
         }
         if let Some(direction) = cat.direction {
@@ -291,6 +291,28 @@ impl NoodleCat {
             }
         }
         Self::control_relaxed(world, &mut control_iter);
+    }
+
+
+    fn follow_head(&self, world: &mut B2World, cat: &state::Cat) {
+        let p2_iter = cat.path.iter().copied()
+            .zip(cat.path.iter().copied().skip(1));
+        let link_iter = self.links.iter().copied();
+        let follow_iter = link_iter.rev().skip(1).zip(p2_iter.rev());
+
+        let mut stretch = 0.0;
+        for (link, (p, p2)) in follow_iter {
+            let d = p2 - p;
+            let length = d.length();
+            stretch += length - 0.1;
+            if length >= std::f32::EPSILON {
+                let adjustment = stretch.max(0.0).min(length);
+                let mut body = world.body_mut(link);
+                let angle = body.angle();
+                body.set_transform(&to_bvec(p + d * adjustment / length), angle);
+                stretch -= adjustment;
+            }
+        }
     }
 
 
