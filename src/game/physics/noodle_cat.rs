@@ -186,7 +186,7 @@ impl NoodleCat {
     }
 
 
-    pub fn control(&mut self, world: &mut B2World, cat: &state::Cat) {
+    pub fn control(&mut self, world: &mut B2World, cat: &state::Cat, delta_time: f32) {
         let mut separation = std::f32::INFINITY;
         let mut other = None;
         let mut normal = vec2(0.0, 0.0);
@@ -249,9 +249,13 @@ impl NoodleCat {
                 other_anchor += normal * (separation + 0.3);
                 // Project movement onto the contact tangent.
                 // TODO: Rotate the head instead when moving backwards or into the ground.
-                let d = Vec2::from_angle(direction) * 3.0 / 480.0;
+                let d = Vec2::from_angle(direction);
                 let tangent = normal.rotated(vec2(0.0, 1.0));
-                other_anchor += tangent.dot(d) * tangent;
+                let projection_length = tangent.dot(d);
+                // Normalize the projected movement unless it's directed into the ground.
+                if projection_length.abs() > 0.2 {
+                    other_anchor += tangent * projection_length.signum() * 4.0 * delta_time;
+                }
             }
             let def = b2::RevoluteJointDef {
                 collide_connected: true,

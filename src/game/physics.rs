@@ -134,7 +134,7 @@ impl World {
             ground.dirty -= state::DirtyFlags::PHYSICS;
         }
 
-        self.cat.control(&mut self.world, cat);
+        self.cat.control(&mut self.world, cat, delta_time);
 
         self.world.step(delta_time, 5, 5);
 
