@@ -31,12 +31,12 @@ impl Ground {
 
         for p in ground.boxes.iter().copied() {
             vertices.extend([
-                Vertex::new(p + vec2(-0.5, 0.5), (0.0, 0.0)),
-                Vertex::new(p + vec2(-0.5, -0.5), (0.0, 1.0)),
-                Vertex::new(p + vec2(0.5, -0.5), (1.0, 1.0)),
-                Vertex::new(p + vec2(-0.5, 0.5), (0.0, 0.0)),
-                Vertex::new(p + vec2(0.5, -0.5), (1.0, 1.0)),
-                Vertex::new(p + vec2(0.5, 0.5), (1.0, 0.0))
+                Vertex::new(p + vec2(-0.5, 0.5), vec2(0.0, 0.0)),
+                Vertex::new(p + vec2(-0.5, -0.5), vec2(0.0, 1.0)),
+                Vertex::new(p + vec2(0.5, -0.5), vec2(1.0, 1.0)),
+                Vertex::new(p + vec2(-0.5, 0.5), vec2(0.0, 0.0)),
+                Vertex::new(p + vec2(0.5, -0.5), vec2(1.0, 1.0)),
+                Vertex::new(p + vec2(0.5, 0.5), vec2(1.0, 0.0))
             ].into_iter());
         }
 

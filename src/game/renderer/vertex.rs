@@ -1,7 +1,7 @@
 use std::mem;
 
 use lib::rgl;
-use lib::math::Vec2;
+use lib::math::{Vec2, vec2};
 
 
 #[repr(C)]
@@ -28,26 +28,21 @@ pub struct DebugVertex {
     pub a: u8
 }
 
-pub trait Position {
-    fn x(&self) -> f32;
-    fn y(&self) -> f32;
-}
-
 
 impl Vertex {
-    pub fn new<P: Position, T: Position>(position: P, tex_coord: T) -> Vertex {
+    pub fn new(position: Vec2, tex_coord: Vec2) -> Vertex {
         Vertex {
-            x: position.x(), y: position.y(),
-            s: tex_coord.x(), t: tex_coord.y(),
+            x: position.x, y: position.y,
+            s: tex_coord.x, t: tex_coord.y,
             r: 255, g: 255, b: 255, a: 255
         }
     }
 
 
-    pub fn rgb<P: Position, T: Position>(position: P, tex_coord: T, r: u8, g: u8, b: u8) -> Vertex {
+    pub fn rgb(position: Vec2, tex_coord: Vec2, r: u8, g: u8, b: u8) -> Vertex {
         Vertex {
-            x: position.x(), y: position.y(),
-            s: tex_coord.x(), t: tex_coord.y(),
+            x: position.x, y: position.y,
+            s: tex_coord.x, t: tex_coord.y,
             r, g, b, a: 255
         }
     }
@@ -72,28 +67,28 @@ impl Vertex {
 
 
     pub fn position_offset() -> usize {
-        let vertex = Vertex::new((0.0, 0.0), (0.0, 0.0));
+        let vertex = Vertex::new(vec2(0.0, 0.0), vec2(0.0, 0.0));
         &vertex.x as *const _ as usize - &vertex as *const _ as usize
     }
 
 
     pub fn tex_coord_offset() -> usize {
-        let vertex = Vertex::new((0.0, 0.0), (0.0, 0.0));
+        let vertex = Vertex::new(vec2(0.0, 0.0), vec2(0.0, 0.0));
         &vertex.s as *const _ as usize - &vertex as *const _ as usize
     }
 
 
     pub fn color_offset() -> usize {
-        let vertex = Vertex::new((0.0, 0.0), (0.0, 0.0));
+        let vertex = Vertex::new(vec2(0.0, 0.0), vec2(0.0, 0.0));
         &vertex.r as *const _ as usize - &vertex as *const _ as usize
     }
 }
 
 
 impl DebugVertex {
-    pub fn new<P: Position>(position: P, r: u8, g: u8, b: u8, a: u8) -> DebugVertex {
+    pub fn new(position: Vec2, r: u8, g: u8, b: u8, a: u8) -> DebugVertex {
         DebugVertex {
-            x: position.x(), y: position.y(),
+            x: position.x, y: position.y,
             r, g, b, a
         }
     }
@@ -117,37 +112,13 @@ impl DebugVertex {
 
 
     pub fn position_offset() -> usize {
-        let vertex = DebugVertex::new((0.0, 0.0), 0, 0, 0, 0);
+        let vertex = DebugVertex::new(vec2(0.0, 0.0), 0, 0, 0, 0);
         &vertex.x as *const _ as usize - &vertex as *const _ as usize
     }
 
 
     pub fn color_offset() -> usize {
-        let vertex = DebugVertex::new((0.0, 0.0), 0, 0, 0, 0);
+        let vertex = DebugVertex::new(vec2(0.0, 0.0), 0, 0, 0, 0);
         &vertex.r as *const _ as usize - &vertex as *const _ as usize
-    }
-}
-
-
-impl Position for (f32, f32) {
-    fn x(&self) -> f32 {
-        self.0
-    }
-
-
-    fn y(&self) -> f32 {
-        self.1
-    }
-}
-
-
-impl Position for Vec2 {
-    fn x(&self) -> f32 {
-        self.x
-    }
-
-
-    fn y(&self) -> f32 {
-        self.y
     }
 }

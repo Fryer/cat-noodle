@@ -46,8 +46,8 @@ impl Renderer {
 
     fn add_line(vertices: &mut Vec<DebugVertex>, x1: f32, y1: f32, x2: f32, y2: f32, r: u8, g: u8, b: u8, a: u8) {
         vertices.extend([
-            DebugVertex::new((x1, y1), r, g, b, a),
-            DebugVertex::new((x2, y2), r, g, b, a)
+            DebugVertex::new(vec2(x1, y1), r, g, b, a),
+            DebugVertex::new(vec2(x2, y2), r, g, b, a)
         ].into_iter());
     }
 

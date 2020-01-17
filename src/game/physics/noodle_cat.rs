@@ -249,9 +249,6 @@ impl NoodleCat {
             if let Some(grab) = self.grab {
                 world.destroy_joint(grab);
             }
-            else {
-                println!("grab");
-            }
             let other = if cat.direction.is_some() { other.unwrap() } else { self.grabbed.unwrap() };
             let head_body = world.body(head);
             let other_body = world.body(other);
@@ -284,7 +281,6 @@ impl NoodleCat {
             self.grab_d = Some(normal);
         }
         else if let Some(grab) = self.grab {
-            println!("release");
             world.destroy_joint(grab);
             self.grab = None;
             self.grab_d = None;
