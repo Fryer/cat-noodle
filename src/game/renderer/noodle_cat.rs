@@ -32,6 +32,12 @@ impl NoodleCat {
         let tail = &cat.tail;
         let mut vertices: Vec<Vertex> = Vec::with_capacity((path.len() + tail.len() + 11) * 6);
 
+        let walk_phase = Vec2::from_angle(-cat.walk_phase * std::f32::consts::PI / 0.4);
+        let near_paw_offset = vec2(-0.2, 0.0) + vec2(0.2, 0.0).rotated(walk_phase);
+        let near_paw_offset = vec2(near_paw_offset.x, near_paw_offset.y.max(0.0));
+        let far_paw_offset = vec2(-0.2, 0.0) + vec2(-0.2, 0.0).rotated(walk_phase);
+        let far_paw_offset = vec2(far_paw_offset.x, far_paw_offset.y.max(0.0));
+
         fn direction(p: Vec2, target: Option<Vec2>, default: Vec2) -> Vec2 {
             match target {
                 Some(t) => {
@@ -48,11 +54,11 @@ impl NoodleCat {
         let (flip, paw_d) = match cat.grab_d {
             Some(grab_d) => {
                 let flip = if grab_d.unrotated(d).y > 0.0 { -1.0 } else { 1.0 };
-                (flip, vec2(1.0, -0.4 * flip).rotated(grab_d * 0.5))
+                (flip, vec2(1.0 - far_paw_offset.y, far_paw_offset.x * flip).rotated(grab_d * 0.5))
             },
             None => {
                 let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
-                (flip, vec2(-0.4, -flip).rotated(d))
+                (flip, vec2(far_paw_offset.x, far_paw_offset.y * flip - flip).rotated(d))
             }
         };
 
@@ -160,13 +166,13 @@ impl NoodleCat {
         ].into_iter());
 
         let (flip, paw_d) = match cat.grab_d {
-            Some(grab_d) => (
-                if grab_d.unrotated(d).y > 0.0 { -1.0 } else { 1.0 },
-                grab_d * 0.5
-            ),
+            Some(grab_d) => {
+                let flip = if grab_d.unrotated(d).y > 0.0 { -1.0 } else { 1.0 };
+                (flip, vec2(1.0 - near_paw_offset.y, near_paw_offset.x * flip).rotated(grab_d * 0.5))
+            },
             None => {
                 let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
-                (flip, vec2(0.0, -flip).rotated(d))
+                (flip, vec2(near_paw_offset.x, near_paw_offset.y * flip - flip).rotated(d))
             }
         };
 

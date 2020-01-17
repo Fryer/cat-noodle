@@ -95,7 +95,8 @@ impl Game {
                 flying: false,
                 path,
                 tail,
-                grab_d: None
+                grab_d: None,
+                walk_phase: 0.0
             }
         };
 

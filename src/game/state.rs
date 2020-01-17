@@ -41,7 +41,8 @@ pub struct Cat {
     pub flying: bool,
     pub path: VecDeque<Vec2>,
     pub tail: VecDeque<Vec2>,
-    pub grab_d: Option<Vec2>
+    pub grab_d: Option<Vec2>,
+    pub walk_phase: f32
 }
 
 pub struct State {

@@ -21,7 +21,8 @@ pub struct NoodleCat {
     head_sensor: FixtureHandle,
     grab: Option<JointHandle>,
     grabbed: Option<BodyHandle>,
-    grab_d: Option<Vec2>
+    grab_d: Option<Vec2>,
+    walk_length: f32
 }
 
 
@@ -169,7 +170,8 @@ impl NoodleCat {
             head_sensor,
             grab: None,
             grabbed: None,
-            grab_d: None
+            grab_d: None,
+            walk_length: 0.0
         }
     }
 
@@ -186,10 +188,18 @@ impl NoodleCat {
             p.y = body.position().y;
         }
         cat.grab_d = self.grab_d;
+        if cat.direction.is_some() {
+            cat.walk_phase += self.walk_length;
+        }
+        else {
+            cat.walk_phase = 0.0;
+        }
     }
 
 
     pub fn control(&mut self, world: &mut B2World, cat: &state::Cat, delta_time: f32) {
+        self.walk_length = 0.0;
+
         let mut separation = std::f32::INFINITY;
         let mut other = None;
         let mut normal = vec2(0.0, 0.0);
@@ -257,7 +267,8 @@ impl NoodleCat {
                 let projection_length = tangent.dot(d);
                 // Normalize the projected movement unless it's directed into the ground.
                 if projection_length.abs() > 0.2 {
-                    other_anchor += tangent * projection_length.signum() * 4.0 * delta_time;
+                    self.walk_length = 4.0 * delta_time;
+                    other_anchor += tangent * projection_length.signum() * self.walk_length;
                 }
             }
             let def = b2::RevoluteJointDef {
@@ -279,7 +290,7 @@ impl NoodleCat {
             self.grab_d = None;
         }
 
-        let mut control_iter = self.make_control_iter(cat);
+        let mut control_iter = Self::make_control_iter(&self.muscles, cat);
         if grab {
             Self::control_relaxed(world, &mut control_iter);
             self.follow_head(world, &cat);
@@ -297,6 +308,7 @@ impl NoodleCat {
                 body.apply_force_to_center(&to_bvec(d * force), true);
                 drop(body);
                 Self::control_movement(world, cat, &mut control_iter);
+                self.walk_length = 8.0 * delta_time;
             }
         }
         Self::control_relaxed(world, &mut control_iter);
@@ -314,7 +326,7 @@ impl NoodleCat {
             let d = p2 - p;
             let length = d.length();
             stretch += length - 0.1;
-            if length >= std::f32::EPSILON {
+            if length >= std::f32::EPSILON * 1000.0 {
                 let adjustment = stretch.max(0.0).min(length);
                 let mut body = world.body_mut(link);
                 let angle = body.angle();
@@ -325,7 +337,7 @@ impl NoodleCat {
     }
 
 
-    fn make_control_iter<'a>(&'a self, cat: &'a state::Cat)
+    fn make_control_iter<'a>(muscles: &'a Vec<JointHandle>, cat: &'a state::Cat)
         -> impl Iterator<Item = (usize, JointHandle, f32, Vec2)> + Clone + 'a
     {
         let p3_iter = cat.path.iter().copied()
@@ -339,7 +351,7 @@ impl NoodleCat {
             }
             else { 0.0 }
         });
-        let muscle_iter = self.muscles.iter().copied();
+        let muscle_iter = muscles.iter().copied();
         let p_iter = cat.path.iter().copied();
         muscle_iter.rev()
             .zip(angle_iter.rev())
