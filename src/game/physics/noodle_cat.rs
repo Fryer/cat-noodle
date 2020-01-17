@@ -20,7 +20,8 @@ pub struct NoodleCat {
     tail_links: Vec<BodyHandle>,
     head_sensor: FixtureHandle,
     grab: Option<JointHandle>,
-    grabbed: Option<BodyHandle>
+    grabbed: Option<BodyHandle>,
+    grab_d: Option<Vec2>
 }
 
 
@@ -167,7 +168,8 @@ impl NoodleCat {
             tail_links,
             head_sensor,
             grab: None,
-            grabbed: None
+            grabbed: None,
+            grab_d: None
         }
     }
 
@@ -183,6 +185,7 @@ impl NoodleCat {
             p.x = body.position().x;
             p.y = body.position().y;
         }
+        cat.grab_d = self.grab_d;
     }
 
 
@@ -267,11 +270,13 @@ impl NoodleCat {
             drop(other_body);
             self.grab = Some(world.create_joint(&def));
             self.grabbed = Some(other);
+            self.grab_d = Some(normal);
         }
         else if let Some(grab) = self.grab {
             println!("release");
             world.destroy_joint(grab);
             self.grab = None;
+            self.grab_d = None;
         }
 
         let mut control_iter = self.make_control_iter(cat);

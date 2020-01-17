@@ -94,7 +94,8 @@ impl Game {
                 direction: None,
                 flying: false,
                 path,
-                tail
+                tail,
+                grab_d: None
             }
         };
 

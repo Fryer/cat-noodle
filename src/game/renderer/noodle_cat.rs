@@ -45,7 +45,16 @@ impl NoodleCat {
 
         let p = path.back().copied().unwrap();
         let d = -direction(p, path.get(path.len() - 2).copied(), vec2(-0.5, 0.0));
-        let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
+        let (flip, paw_d) = match cat.grab_d {
+            Some(grab_d) => {
+                let flip = if grab_d.unrotated(d).y > 0.0 { -1.0 } else { 1.0 };
+                (flip, vec2(1.0, -0.4 * flip).rotated(grab_d * 0.5))
+            },
+            None => {
+                let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
+                (flip, vec2(-0.4, -flip).rotated(d))
+            }
+        };
 
         // Far ear.
         let ear_p = p + vec2(0.0, 0.8 * flip).rotated(d);
@@ -60,7 +69,7 @@ impl NoodleCat {
         ].into_iter());
 
         // Far front paw.
-        let paw_p = p + vec2(-0.4, -flip).rotated(d);
+        let paw_p = p + paw_d;
         vertices.extend([
             Vertex::rgb(paw_p - vec2(-0.2, 0.2), (0.625, 0.125), 127, 127, 127),
             Vertex::rgb(paw_p - vec2(-0.2, -0.2), (0.625, 0.375), 127, 127, 127),
@@ -150,7 +159,16 @@ impl NoodleCat {
             Vertex::new(p + vec2(1.0, 1.0).rotated(d), (0.5, 0.0))
         ].into_iter());
 
-        let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
+        let (flip, paw_d) = match cat.grab_d {
+            Some(grab_d) => (
+                if grab_d.unrotated(d).y > 0.0 { -1.0 } else { 1.0 },
+                grab_d * 0.5
+            ),
+            None => {
+                let flip = if d.x < 0.0 { -1.0 } else { 1.0 };
+                (flip, vec2(0.0, -flip).rotated(d))
+            }
+        };
 
         // Eye.
         let eye_p = p + vec2(0.25, 0.25 * flip).rotated(d);
@@ -208,7 +226,7 @@ impl NoodleCat {
         ].into_iter());
 
         // Near front paw.
-        let paw_p = p + vec2(0.0, -flip).rotated(d);
+        let paw_p = p + paw_d;
         vertices.extend([
             Vertex::new(paw_p - vec2(-0.2, 0.2), (0.625, 0.125)),
             Vertex::new(paw_p - vec2(-0.2, -0.2), (0.625, 0.375)),
