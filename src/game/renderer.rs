@@ -1,20 +1,16 @@
-use std::error::Error;
-
 extern crate image;
+mod vertex;
+mod debug;
+mod ground;
+mod noodle_cat;
+
+use std::error::Error;
 
 use lib::rgl;
 
-mod vertex;
-
-mod debug;
-
-mod ground;
-use ground::Ground;
-
-mod noodle_cat;
-use noodle_cat::NoodleCat;
-
 use super::state;
+use ground::Ground;
+use noodle_cat::NoodleCat;
 
 
 pub struct Renderer {

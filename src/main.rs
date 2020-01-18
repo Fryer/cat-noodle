@@ -1,3 +1,8 @@
+#[macro_use]
+extern crate bitflags;
+extern crate glfw;
+mod game;
+
 use std::{
     panic,
     ptr,
@@ -6,13 +11,8 @@ use std::{
     sync::{mpsc, Mutex}
 };
 
-#[macro_use]
-extern crate bitflags;
-
-extern crate glfw;
 use glfw::Context;
 
-mod game;
 use game::Game;
 
 

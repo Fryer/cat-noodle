@@ -1,9 +1,8 @@
 use lib::rgl;
 use lib::math::{Vec2, vec2};
 
-use super::vertex::Vertex;
-
 use super::state;
+use super::vertex::Vertex;
 
 
 pub struct NoodleCat {

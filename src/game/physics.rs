@@ -1,14 +1,15 @@
-use wrapped2d::b2;
-use wrapped2d::user_data::NoUserData;
-use wrapped2d::dynamics::world::BodyHandle;
-use wrapped2d::dynamics::contacts::Contact;
+mod noodle_cat;
+
+use wrapped2d::{
+    b2,
+    user_data::NoUserData,
+    dynamics::{world::BodyHandle, contacts::Contact}
+};
 
 use lib::math::{Vec2, vec2};
 
-mod noodle_cat;
-use noodle_cat::NoodleCat;
-
 use super::state;
+use noodle_cat::NoodleCat;
 
 
 type B2World = b2::World<NoUserData>;

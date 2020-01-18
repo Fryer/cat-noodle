@@ -4,9 +4,9 @@ use wrapped2d::dynamics::body::FixtureHandle;
 
 use lib::math::{Vec2, vec2, wrap_angle};
 
-use super::B2World;
 use super::{
     state,
+    B2World,
     to_vec2,
     to_bvec,
     b2_get_local_point,

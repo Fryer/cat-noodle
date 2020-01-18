@@ -1,3 +1,7 @@
+mod state;
+mod renderer;
+mod physics;
+
 use std::{
     error::Error,
     sync::mpsc,
@@ -7,13 +11,8 @@ use std::{
 
 use lib::math::vec2;
 
-mod state;
 use state::State;
-
-mod renderer;
 use renderer::Renderer;
-
-mod physics;
 
 
 pub enum Event {

@@ -1,3 +1,5 @@
+extern crate gl;
+
 use std::{
     error::Error,
     fmt,
@@ -6,7 +8,6 @@ use std::{
     mem
 };
 
-extern crate gl;
 use gl::types::*;
 
 

@@ -1,9 +1,8 @@
 use lib::rgl;
 use lib::math::vec2;
 
-use super::vertex::Vertex;
-
 use super::state;
+use super::vertex::Vertex;
 
 
 pub struct Ground {
