@@ -1,5 +1,6 @@
 extern crate image;
 mod vertex;
+mod text;
 mod debug;
 mod ground;
 mod noodle_cat;
@@ -7,8 +8,10 @@ mod noodle_cat;
 use std::error::Error;
 
 use lib::rgl;
+use lib::math::vec2;
 
 use super::state;
+use text::Text;
 use ground::Ground;
 use noodle_cat::NoodleCat;
 
@@ -20,7 +23,9 @@ pub struct Renderer {
     ground_sprite: rgl::Texture,
     ground: Ground,
     cat_sprite: rgl::Texture,
-    cat: NoodleCat
+    cat: NoodleCat,
+    font: text::Font,
+    sample_text: Text
 }
 
 
@@ -45,10 +50,16 @@ impl Renderer {
         let debug_renderer = debug::Renderer::new()?;
 
         let ground_sprite = Self::load_texture("img/ground.png")?;
-        let ground = Ground::new()?;
+        let ground = Ground::new();
 
         let cat_sprite = Self::load_masked_texture("img/cat_rgb.png", "img/cat_a.png")?;
         let cat = NoodleCat::new()?;
+
+        let font = text::Library::new().new_font("font/OpenSans-Regular.ttf", 100);
+        let mut sample_text = Text::new();
+        sample_text.add_text(&font, "= Cat Noodle =", vec2(10.0, -10.0));
+        sample_text.add_text(&font, "Hello, World!", vec2(10.0, -10.0 - font.height()));
+        sample_text.update(false)?;
 
         Ok(Renderer {
             sprite_program,
@@ -57,7 +68,9 @@ impl Renderer {
             ground_sprite,
             ground,
             cat_sprite,
-            cat
+            cat,
+            font,
+            sample_text
         })
     }
 
@@ -141,6 +154,11 @@ impl Renderer {
         self.debug_program.use_program()?;
         Self::set_transform(&mut self.debug_program, zoom, -camera.x, -camera.y, 1.0, 0.0)?;
         self.debug_renderer.render()?;
+
+        self.sprite_program.use_program()?;
+        Self::set_transform(&mut self.sprite_program, 1.0 / 360.0, -640.0, 360.0, 1.0, 0.0)?;
+        self.font.bind(0)?;
+        self.sample_text.render()?;
 
         Ok(())
     }

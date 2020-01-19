@@ -12,11 +12,11 @@ pub struct Ground {
 
 
 impl Ground {
-    pub fn new() -> Result<Ground, rgl::GLError> {
-        Ok(Ground {
+    pub fn new() ->Ground {
+        Ground {
             vertex_array: None,
             vertices: 0
-        })
+        }
     }
 
 
