@@ -48,7 +48,7 @@ impl Library {
         face.set_char_size(0, size * 64, 0, 0).unwrap();
         let metrics = face.size_metrics().unwrap();
 
-        let mut atlas_data: Vec<u8> = [255, 255, 255, 0].iter().copied().cycle().take(1024 * 1024 * 4).collect();
+        let mut atlas_data: Vec<u8> = std::iter::repeat(0).take(1024 * 1024 * 4).collect();
 
         // TODO: Use a fast hasher.
         let mut glyphs = HashMap::new();
@@ -97,11 +97,15 @@ impl Library {
         // TODO: Go up instead if the pitch is negative.
         assert!(bitmap.pitch() >= 0);
         let bitmap_buffer = bitmap.buffer();
-        let mut atlas_p = (x + y * 1024) * 4 + 3;
+        let mut atlas_p = (x + y * 1024) * 4;
         let mut bitmap_p = 0;
         for _ in 0..bitmap.rows() {
             for _ in 0..bitmap.width() {
-                atlas[atlas_p] = bitmap_buffer[bitmap_p];
+                let v = bitmap_buffer[bitmap_p];
+                atlas[atlas_p] = v;
+                atlas[atlas_p + 1] = v;
+                atlas[atlas_p + 2] = v;
+                atlas[atlas_p + 3] = v;
                 atlas_p += 4;
                 bitmap_p += 1;
             }

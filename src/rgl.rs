@@ -16,7 +16,7 @@ pub struct GLError {
 }
 
 pub enum BlendFactor {
-    SourceAlpha,
+    One,
     OneMinusSourceAlpha
 }
 
@@ -90,7 +90,7 @@ fn handle_error(function: &str) -> Result<(), GLError> {
 pub fn set_blend_function(function: Option<BlendFunction>) -> Result<(), GLError> {
     fn blend_factor(factor: BlendFactor) -> GLenum {
         match factor {
-            BlendFactor::SourceAlpha => gl::SRC_ALPHA,
+            BlendFactor::One => gl::ONE,
             BlendFactor::OneMinusSourceAlpha => gl::ONE_MINUS_SRC_ALPHA
         }
     }

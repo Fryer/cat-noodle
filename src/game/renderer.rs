@@ -32,7 +32,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new() -> Result<Renderer, Box<dyn Error>> {
         rgl::set_blend_function(Some(rgl::BlendFunction(
-            rgl::BlendFactor::SourceAlpha,
+            rgl::BlendFactor::One,
             rgl::BlendFactor::OneMinusSourceAlpha
         )))?;
 
@@ -52,7 +52,7 @@ impl Renderer {
         let ground_sprite = Self::load_texture("img/ground.png")?;
         let ground = Ground::new();
 
-        let cat_sprite = Self::load_masked_texture("img/cat_rgb.png", "img/cat_a.png")?;
+        let cat_sprite = Self::load_texture("img/cat.png")?;
         let cat = NoodleCat::new()?;
 
         let font = text::Library::new().new_font("font/OpenSans-Regular.ttf", 100);
@@ -94,25 +94,11 @@ impl Renderer {
 
 
     fn load_texture(file: &str) -> Result<rgl::Texture, Box<dyn Error>> {
-        let image = image::open(file)?.to_rgba();
-        let width = image.width();
-        let height = image.height();
-        let data = image.into_raw();
-
-        let mut texture = rgl::Texture::new()?;
-        texture.set_data(data.as_slice(), width as _, height as _)?;
-
-        Ok(texture)
-    }
-
-
-    fn load_masked_texture(file: &str, alpha: &str) -> Result<rgl::Texture, Box<dyn Error>> {
         let mut image = image::open(file)?.to_rgba();
-        let mask = image::open(alpha)?.to_luma();
-        for (x, y, color) in image.enumerate_pixels_mut() {
-            if x < mask.width() && y < mask.height() {
-                color.0[3] = mask.get_pixel(x, y).0[0];
-            }
+        for color in image.pixels_mut() {
+            color.0[0] = (color.0[0] as u16 * color.0[3] as u16 / 255) as _;
+            color.0[1] = (color.0[1] as u16 * color.0[3] as u16 / 255) as _;
+            color.0[2] = (color.0[2] as u16 * color.0[3] as u16 / 255) as _;
         }
         let width = image.width();
         let height = image.height();
