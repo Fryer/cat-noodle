@@ -2,6 +2,8 @@
 **/*.rs.bk
 /.idea
 /.cargo
+/deps/harfbuzz-sys/freetype
+/deps/harfbuzz-sys/harfbuzz
 /lib
 /img
 /font

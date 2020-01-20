@@ -13,6 +13,10 @@ gl = "0.14.0"
 image = "0.22.3"
 wrapped2d = "0.4.0"
 freetype-rs = "0.23.0"
+harfbuzz_rs = "1.0.1"
+
+[patch.crates-io]
+harfbuzz-sys = { path = 'deps/harfbuzz-sys' }
 
 [lib]
 name="lib"

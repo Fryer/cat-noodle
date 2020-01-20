@@ -1,9 +1,11 @@
 extern crate freetype;
 
 use std::rc::Rc;
+use std::mem::ManuallyDrop;
 use std::collections::HashMap;
 
 use freetype as ft;
+use harfbuzz_rs as hb;
 
 use lib::rgl;
 use lib::math::{Vec2, vec2};
@@ -24,10 +26,11 @@ struct Glyph {
 }
 
 pub struct Font {
-    _library: Rc<ft::Library>,
-    face: ft::Face,
+    library: ManuallyDrop<Rc<ft::Library>>,
+    face: ManuallyDrop<ft::Face>,
+    font: ManuallyDrop<hb::Owned<hb::Font<'static>>>,
     atlas: rgl::Texture,
-    glyphs: HashMap<usize, Glyph>
+    glyphs: HashMap<u32, Glyph>
 }
 
 pub struct Text {
@@ -44,7 +47,7 @@ impl Library {
 
 
     pub fn new_font(&self, file: &str, size: isize) -> Font {
-        let face = self.library.new_face(file, 0).unwrap();
+        let mut face = self.library.new_face(file, 0).unwrap();
         face.set_char_size(0, size * 64, 0, 0).unwrap();
         let metrics = face.size_metrics().unwrap();
 
@@ -68,23 +71,31 @@ impl Library {
             Self::blit_glyph(atlas_data.as_mut_slice(), &bitmap, x, y);
             let tex_tl = vec2(x as f32 - 0.5, y as f32 - 0.5) / 1024.0;
             let size = vec2(bitmap.width() as f32 + 1.0, -bitmap.rows() as f32 - 1.0);
-            let glyph = Glyph {
+            x += bitmap.width() as usize + 1;
+            glyphs.insert(face.get_char_index(c), Glyph {
                 tex_tl,
                 tex_br: tex_tl + vec2(size.x, -size.y) / 1024.0,
                 size,
-                offset: vec2(glyph.bitmap_left() as f32 - 0.5, glyph.bitmap_top() as f32 - 0.5),
+                offset: vec2(glyph.bitmap_left() as f32 - 0.5, glyph.bitmap_top() as f32 + 0.5),
                 advance: (glyph.advance().x / 64) as _
-            };
-            x += bitmap.width() as usize + 1;
-            glyphs.insert(c, glyph);
+            });
         }
 
         let mut atlas = rgl::Texture::new().unwrap();
         atlas.set_data(atlas_data.as_slice(), 1024, 1024).unwrap();
 
+        extern "C" {
+            fn hb_ft_font_create(ft_face: ft::ffi::FT_Face, _: hb::hb::hb_destroy_func_t) -> *mut hb::hb::hb_font_t;
+        }
+        let font = unsafe {
+            let raw_font = hb_ft_font_create(face.raw_mut() as _, hb::hb::hb_destroy_func_t::default());
+            hb::Owned::from_raw(raw_font)
+        };
+
         Font {
-            _library: self.library.clone(),
-            face,
+            library: ManuallyDrop::new(self.library.clone()),
+            face: ManuallyDrop::new(face),
+            font: ManuallyDrop::new(font),
             atlas,
             glyphs
         }
@@ -128,6 +139,17 @@ impl Font {
 }
 
 
+impl Drop for Font {
+    fn drop(&mut self) {
+        unsafe {
+            ManuallyDrop::drop(&mut self.font);
+            ManuallyDrop::drop(&mut self.face);
+            ManuallyDrop::drop(&mut self.library);
+        }
+    }
+}
+
+
 impl Text {
     pub fn new() -> Text {
         Text {
@@ -143,14 +165,46 @@ impl Text {
 
         let mut cursor = position + vec2(0.0, -(font.face.size_metrics().unwrap().ascender / 64) as _);
         for c in text.chars() {
-            let glyph = &font.glyphs[&(c as usize)];
-            if glyph.size == vec2(0.0, 0.0) {
+            let glyph = &font.glyphs[&font.face.get_char_index(c as _)];
+            if glyph.size == vec2(1.0, -1.0) {
                 cursor.x += glyph.advance;
                 continue;
             }
             let tl = cursor + glyph.offset;
             let br = tl + glyph.size;
             cursor.x += glyph.advance;
+            self.vertex_data.extend([
+                Vertex::new(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y)),
+                Vertex::new(vec2(tl.x, br.y), vec2(glyph.tex_tl.x, glyph.tex_br.y)),
+                Vertex::new(vec2(br.x, br.y), vec2(glyph.tex_br.x, glyph.tex_br.y)),
+                Vertex::new(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y)),
+                Vertex::new(vec2(br.x, br.y), vec2(glyph.tex_br.x, glyph.tex_br.y)),
+                Vertex::new(vec2(br.x, tl.y), vec2(glyph.tex_br.x, glyph.tex_tl.y))
+            ].into_iter());
+        }
+    }
+
+
+    pub fn add_hb_text(&mut self, font: &Font, text: &str, position: Vec2) {
+        self.vertex_data.reserve(text.len() * 6);
+
+        let mut buffer = hb::UnicodeBuffer::new().add_str(text);
+        buffer = buffer.guess_segment_properties();
+        let glyphs = hb::shape(&font.font, buffer, &[]);
+        let positions = glyphs.get_glyph_positions();
+        let infos = glyphs.get_glyph_infos();
+        let glyph_iter = positions.iter().zip(infos);
+
+        let mut cursor = position + vec2(0.0, -(font.face.size_metrics().unwrap().ascender / 64) as _);
+        for (position, info) in glyph_iter {
+            let glyph = &font.glyphs[&info.codepoint];
+            if glyph.size == vec2(1.0, -1.0) {
+                cursor += vec2((position.x_advance / 64) as _, (position.y_advance / 64) as _);
+                continue;
+            }
+            let tl = cursor + glyph.offset + vec2((position.x_offset / 64) as _, (position.y_offset / 64) as _);
+            let br = tl + glyph.size;
+            cursor += vec2((position.x_advance / 64) as _, (position.y_advance / 64) as _);
             self.vertex_data.extend([
                 Vertex::new(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y)),
                 Vertex::new(vec2(tl.x, br.y), vec2(glyph.tex_tl.x, glyph.tex_br.y)),
