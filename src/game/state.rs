@@ -1,14 +1,13 @@
 use std::collections::VecDeque;
+use std::time;
 
 use lib::math::Vec2;
 
 
 bitflags! {
     pub struct DirtyFlags: u8 {
-        const NONE = 0;
         const RENDER = 0b1;
         const PHYSICS = 0b10;
-        const ALL = Self::RENDER.bits | Self::PHYSICS.bits;
     }
 }
 
@@ -17,7 +16,13 @@ pub struct Input {
     pub right: bool,
     pub up: bool,
     pub down: bool,
-    pub fly: bool
+    pub fly: bool,
+    pub toggle_debug_physics: bool,
+    pub toggle_debug_physics_shapes: bool,
+    pub toggle_debug_physics_joints: bool,
+    pub toggle_debug_physics_aabbs: bool,
+    pub toggle_debug_physics_transforms: bool,
+    pub toggle_debug_physics_contacts: bool
 }
 
 pub enum DebugShape {
@@ -27,8 +32,22 @@ pub enum DebugShape {
 
 pub struct DebugColor(pub u8, pub u8, pub u8, pub u8);
 
+bitflags! {
+    pub struct DebugPhysics: u8 {
+        const SHAPES = 0b1;
+        const JOINTS = 0b10;
+        const AABBS = 0b100;
+        const TRANSFORMS = 0b1000;
+        const CONTACTS = 0b10000;
+    }
+}
+
 pub struct DebugInfo {
-    pub shapes: VecDeque<(DebugShape, DebugColor)>
+    pub shapes: VecDeque<(DebugShape, DebugColor)>,
+    pub frames: VecDeque<time::Instant>,
+    pub skipped_steps: bool,
+    pub show_physics: bool,
+    pub physics_flags: DebugPhysics
 }
 
 pub struct Ground {

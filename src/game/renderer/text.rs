@@ -196,7 +196,12 @@ impl Text {
     }
 
 
-    pub fn add_text(&mut self, font: &Font, text: &str, mut position: Vec2) {
+    pub fn add_text(&mut self, font: &Font, text: &str, position: Vec2) {
+        self.add_text_rgb(font, text, position, 255, 255, 255);
+    }
+
+
+    pub fn add_text_rgb(&mut self, font: &Font, text: &str, mut position: Vec2, r: u8, g: u8, b: u8) {
         self.vertex_data.reserve(text.len() * 6);
 
         let buffer = hb::UnicodeBuffer::new()
@@ -219,12 +224,12 @@ impl Text {
             let br = tl + glyph.size;
             position += vec2((glyph_p.x_advance / 64) as _, (glyph_p.y_advance / 64) as _);
             self.vertex_data.extend([
-                Vertex::new(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y)),
-                Vertex::new(vec2(tl.x, br.y), vec2(glyph.tex_tl.x, glyph.tex_br.y)),
-                Vertex::new(vec2(br.x, br.y), vec2(glyph.tex_br.x, glyph.tex_br.y)),
-                Vertex::new(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y)),
-                Vertex::new(vec2(br.x, br.y), vec2(glyph.tex_br.x, glyph.tex_br.y)),
-                Vertex::new(vec2(br.x, tl.y), vec2(glyph.tex_br.x, glyph.tex_tl.y))
+                Vertex::rgb(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y), r, g, b),
+                Vertex::rgb(vec2(tl.x, br.y), vec2(glyph.tex_tl.x, glyph.tex_br.y), r, g, b),
+                Vertex::rgb(vec2(br.x, br.y), vec2(glyph.tex_br.x, glyph.tex_br.y), r, g, b),
+                Vertex::rgb(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y), r, g, b),
+                Vertex::rgb(vec2(br.x, br.y), vec2(glyph.tex_br.x, glyph.tex_br.y), r, g, b),
+                Vertex::rgb(vec2(br.x, tl.y), vec2(glyph.tex_br.x, glyph.tex_tl.y), r, g, b)
             ].into_iter());
         }
     }

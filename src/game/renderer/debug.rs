@@ -1,23 +1,28 @@
+use std::error::Error;
+
 use lib::rgl;
 use lib::math::{Vec2, vec2};
 
 use super::state;
+use super::text::{self, Font, Text};
 use super::vertex::DebugVertex;
 
 
 pub struct Renderer {
     vertex_array: rgl::VertexArray,
-    vertices: usize
+    vertices: usize,
+    font: Font,
+    text: Text
 }
 
 
 impl Renderer {
-    pub fn new() -> Result<Renderer, rgl::GLError> {
-        let vertex_array = DebugVertex::create_array(&[])?;
-
+    pub fn new(library: &text::Library) -> Result<Renderer, Box<dyn Error>> {
         Ok(Renderer {
-            vertex_array,
-            vertices: 0
+            vertex_array: DebugVertex::create_array(&[])?,
+            vertices: 0,
+            font: library.new_font("font/Roboto-Bold.ttf", 18)?,
+            text: Text::new()
         })
     }
 
@@ -39,6 +44,48 @@ impl Renderer {
 
         self.vertex_array.buffer.set_data(vertices.as_slice(), rgl::BufferUsage::StreamDraw)?;
         self.vertices = vertices.len();
+
+        let mut p = vec2(10.0, -10.0);
+        self.text.add_text(&self.font, "FPS: ", p);
+        let fps = info.frames.len();
+        let (r, g, b) = if info.skipped_steps { (255, 0, 0) } else { (0, 255, 0) };
+        self.text.add_text_rgb(&self.font, format!("{}", fps).as_str(), p + vec2(40.0, 0.0), r, g, b);
+        p.y -= self.font.height() * 1.5;
+        self.text.add_text(&self.font, "[0]: ", p);
+        let (r, g, b) = if info.show_physics { (191, 255, 191) } else { (191, 128, 128) };
+        self.text.add_text_rgb(&self.font, "Debug physics", p + vec2(30.0, 0.0), r, g, b);
+        p.y -= self.font.height();
+        if info.show_physics {
+            let (shapes, joints, aabbs, transforms, contacts) = (
+                info.physics_flags.contains(state::DebugPhysics::SHAPES),
+                info.physics_flags.contains(state::DebugPhysics::JOINTS),
+                info.physics_flags.contains(state::DebugPhysics::AABBS),
+                info.physics_flags.contains(state::DebugPhysics::TRANSFORMS),
+                info.physics_flags.contains(state::DebugPhysics::CONTACTS)
+            );
+            self.text.add_text(&self.font, "[1]: ", p + vec2(10.0, 0.0));
+            let (r, g, b) = if shapes { (191, 255, 191) } else { (191, 128, 128) };
+            self.text.add_text_rgb(&self.font, "Show shapes", p + vec2(40.0, 0.0), r, g, b);
+            p.y -= self.font.height();
+            self.text.add_text(&self.font, "[2]: ", p + vec2(10.0, 0.0));
+            let (r, g, b) = if joints { (191, 255, 191) } else { (191, 128, 128) };
+            self.text.add_text_rgb(&self.font, "Show joints", p + vec2(40.0, 0.0), r, g, b);
+            p.y -= self.font.height();
+            self.text.add_text(&self.font, "[3]: ", p + vec2(10.0, 0.0));
+            let (r, g, b) = if aabbs { (191, 255, 191) } else { (191, 128, 128) };
+            self.text.add_text_rgb(&self.font, "Show AABBs", p + vec2(40.0, 0.0), r, g, b);
+            p.y -= self.font.height();
+            self.text.add_text(&self.font, "[4]: ", p + vec2(10.0, 0.0));
+            let (r, g, b) = if transforms { (191, 255, 191) } else { (191, 128, 128) };
+            self.text.add_text_rgb(&self.font, "Show transforms", p + vec2(40.0, 0.0), r, g, b);
+            p.y -= self.font.height();
+            self.text.add_text(&self.font, "[5]: ", p + vec2(10.0, 0.0));
+            let (r, g, b) = if contacts { (191, 255, 191) } else { (191, 128, 128) };
+            self.text.add_text_rgb(&self.font, "Show contacts", p + vec2(40.0, 0.0), r, g, b);
+            p.y -= self.font.height();
+        }
+        self.text.update(true)?;
+
         Ok(())
     }
 
@@ -65,6 +112,13 @@ impl Renderer {
     pub fn render(&self) -> Result<(), rgl::GLError> {
         self.vertex_array.bind()?;
         rgl::draw(rgl::DrawMode::Lines, 0, self.vertices as _)?;
+        Ok(())
+    }
+
+
+    pub fn render_text(&self) -> Result<(), rgl::GLError> {
+        self.font.bind(0)?;
+        self.text.render()?;
         Ok(())
     }
 }

@@ -15,10 +15,8 @@ pub struct NoodleCat {
 
 impl NoodleCat {
     pub fn new() -> Result<NoodleCat, rgl::GLError> {
-        let vertex_array = Vertex::create_array(&[], rgl::BufferUsage::StreamDraw)?;
-
         Ok(NoodleCat {
-            vertex_array,
+            vertex_array: Vertex::create_array(&[], rgl::BufferUsage::StreamDraw)?,
             vertices: 0,
             near_start: 0,
             near_count: 0

@@ -80,14 +80,24 @@ impl Game {
                 right: false,
                 up: false,
                 down: false,
-                fly: false
+                fly: false,
+                toggle_debug_physics: false,
+                toggle_debug_physics_shapes: false,
+                toggle_debug_physics_joints: false,
+                toggle_debug_physics_aabbs: false,
+                toggle_debug_physics_transforms: false,
+                toggle_debug_physics_contacts: false
             },
             debug: state::DebugInfo {
-                shapes: VecDeque::new()
+                shapes: VecDeque::new(),
+                frames: VecDeque::new(),
+                skipped_steps: false,
+                show_physics: false,
+                physics_flags: state::DebugPhysics::all()
             },
             ground: state::Ground {
                 boxes,
-                dirty: state::DirtyFlags::ALL
+                dirty: state::DirtyFlags::all()
             },
             cat: state::Cat {
                 direction: None,
@@ -118,6 +128,10 @@ impl Game {
         self.last_update += delta_time;
         if delta_time > max_step {
             delta_time = max_step;
+            self.state.debug.skipped_steps = true;
+        }
+        else {
+            self.state.debug.skipped_steps = false;
         }
         while delta_time >= step_time {
             if !self.step(step_time.as_secs_f32()) {
@@ -126,46 +140,84 @@ impl Game {
             delta_time -= step_time;
         }
 
-        self.physics.debug(&mut self.state.debug);
+        self.debug();
         self.renderer.render(&mut self.state)?;
         Ok(true)
     }
 
 
     fn step(&mut self, delta_time: f32) -> bool {
+        // TODO: Fix event timing.
         while let Ok(event) = self.event_receiver.try_recv() {
             if !self.handle_event(event) {
                 return false;
             }
         }
 
-        self.update_cat(delta_time);
+        self.update_debug();
+        self.update_cat();
 
         self.physics.step(&mut self.state, delta_time);
         true
     }
 
 
+    fn debug(&mut self) {
+        let debug = &mut self.state.debug;
+
+        if debug.show_physics {
+            self.physics.debug(debug);
+        }
+
+        while let Some(time) = debug.frames.front() {
+            if time.elapsed().as_secs() < 1 {
+                break;
+            }
+            debug.frames.pop_front();
+        }
+        debug.frames.push_back(time::Instant::now());
+    }
+
+
     fn handle_event(&mut self, event: Event) -> bool {
+        let input = &mut self.state.input;
         match event {
             Event::Close => {
                 println!("close");
                 return false;
             }
             Event::Key(action, glfw::Key::Left) => {
-                self.state.input.left = action != glfw::Action::Release;
+                input.left = action != glfw::Action::Release;
             }
             Event::Key(action, glfw::Key::Right) => {
-                self.state.input.right = action != glfw::Action::Release;
+                input.right = action != glfw::Action::Release;
             }
             Event::Key(action, glfw::Key::Up) => {
-                self.state.input.up = action != glfw::Action::Release;
+                input.up = action != glfw::Action::Release;
             }
             Event::Key(action, glfw::Key::Down) => {
-                self.state.input.down = action != glfw::Action::Release;
+                input.down = action != glfw::Action::Release;
             }
             Event::Key(action, glfw::Key::LeftControl) => {
-                self.state.input.fly = action != glfw::Action::Release;
+                input.fly = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Num0) => {
+                input.toggle_debug_physics = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Num1) => {
+                input.toggle_debug_physics_shapes = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Num2) => {
+                input.toggle_debug_physics_joints = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Num3) => {
+                input.toggle_debug_physics_aabbs = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Num4) => {
+                input.toggle_debug_physics_transforms = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::Num5) => {
+                input.toggle_debug_physics_contacts = action != glfw::Action::Release;
             }
             Event::Key(action, key) => {
                 println!("key {:?}: {:?}", action, key);
@@ -175,10 +227,41 @@ impl Game {
     }
 
 
-    fn update_cat(&mut self, _delta_time: f32) {
+    fn update_debug(&mut self) {
+        let input = &mut self.state.input;
+        let debug = &mut self.state.debug;
+        if input.toggle_debug_physics {
+            input.toggle_debug_physics = false;
+            debug.show_physics ^= true;
+        }
+        if input.toggle_debug_physics_shapes {
+            input.toggle_debug_physics_shapes = false;
+            debug.physics_flags ^= state::DebugPhysics::SHAPES;
+        }
+        if input.toggle_debug_physics_joints {
+            input.toggle_debug_physics_joints = false;
+            debug.physics_flags ^= state::DebugPhysics::JOINTS;
+        }
+        if input.toggle_debug_physics_aabbs {
+            input.toggle_debug_physics_aabbs = false;
+            debug.physics_flags ^= state::DebugPhysics::AABBS;
+        }
+        if input.toggle_debug_physics_transforms {
+            input.toggle_debug_physics_transforms = false;
+            debug.physics_flags ^= state::DebugPhysics::TRANSFORMS;
+        }
+        if input.toggle_debug_physics_contacts {
+            input.toggle_debug_physics_contacts = false;
+            debug.physics_flags ^= state::DebugPhysics::CONTACTS;
+        }
+    }
+
+
+    fn update_cat(&mut self) {
         let input = &self.state.input;
         let cat = &mut self.state.cat;
 
+        // TODO: Smooth input.
         if input.left ^ input.right || input.up ^ input.down {
             let d = vec2(
                 input.right as i8 as f32 - input.left as i8 as f32,

@@ -144,8 +144,23 @@ impl World {
 
 
     pub fn debug(&mut self, info: &mut state::DebugInfo) {
-        self.world.draw_debug_data(&mut DebugDraw { info }, b2::DRAW_SHAPE | b2::DRAW_JOINT);
-        self.debug_contacts(info);
+        let mut flags = b2::DrawFlags::empty();
+        if info.physics_flags.contains(state::DebugPhysics::SHAPES) {
+            flags |= b2::DRAW_SHAPE;
+        }
+        if info.physics_flags.contains(state::DebugPhysics::JOINTS) {
+            flags |= b2::DRAW_JOINT;
+        }
+        if info.physics_flags.contains(state::DebugPhysics::AABBS) {
+            flags |= b2::DRAW_AABB;
+        }
+        if info.physics_flags.contains(state::DebugPhysics::TRANSFORMS) {
+            flags |= b2::DRAW_CENTER_OF_MASS;
+        }
+        self.world.draw_debug_data(&mut DebugDraw { info }, flags);
+        if info.physics_flags.contains(state::DebugPhysics::CONTACTS) {
+            self.debug_contacts(info);
+        }
     }
 
 
@@ -256,15 +271,15 @@ impl b2::Draw for DebugDraw<'_> {
         self.info.shapes.push_back((
             state::DebugShape::Line(
                 xf.pos.x, xf.pos.y,
-                xf.pos.x + xf.rot.x_axis().x,
-                xf.pos.y + xf.rot.x_axis().y,
+                xf.pos.x + xf.rot.x_axis().x * 0.5,
+                xf.pos.y + xf.rot.x_axis().y * 0.5,
             ), state::DebugColor(255, 0, 0, 255)
         ));
         self.info.shapes.push_back((
             state::DebugShape::Line(
                 xf.pos.x, xf.pos.y,
-                xf.pos.x + xf.rot.y_axis().x,
-                xf.pos.y + xf.rot.y_axis().y,
+                xf.pos.x + xf.rot.y_axis().x * 0.5,
+                xf.pos.y + xf.rot.y_axis().y * 0.5,
             ), state::DebugColor(0, 255, 0, 255)
         ));
     }
