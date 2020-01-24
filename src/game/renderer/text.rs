@@ -1,8 +1,12 @@
 extern crate freetype;
 
-use std::rc::Rc;
-use std::mem::ManuallyDrop;
-use std::collections::HashMap;
+use std::{
+    error::Error,
+    fmt,
+    rc::Rc,
+    mem::ManuallyDrop,
+    collections::HashMap
+};
 
 use freetype as ft;
 use harfbuzz_rs as hb;
@@ -13,6 +17,10 @@ use lib::math::{Vec2, vec2};
 use super::vertex::Vertex;
 
 
+pub struct TextError {
+    error: &'static str
+}
+
 pub struct Library {
     library: Rc<ft::Library>
 }
@@ -21,8 +29,7 @@ struct Glyph {
     tex_tl: Vec2,
     tex_br: Vec2,
     size: Vec2,
-    offset: Vec2,
-    advance: f32
+    offset: Vec2
 }
 
 pub struct Font {
@@ -30,7 +37,8 @@ pub struct Font {
     face: ManuallyDrop<ft::Face>,
     font: ManuallyDrop<hb::Owned<hb::Font<'static>>>,
     atlas: rgl::Texture,
-    glyphs: HashMap<u32, Glyph>
+    glyphs: HashMap<u32, Glyph>,
+    height: f32
 }
 
 pub struct Text {
@@ -40,16 +48,37 @@ pub struct Text {
 }
 
 
+impl Error for TextError {}
+
+
+impl fmt::Debug for TextError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.error)
+    }
+}
+
+
+impl fmt::Display for TextError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.error)
+    }
+}
+
+
 impl Library {
-    pub fn new() -> Library {
-        Library { library: Rc::new(ft::Library::init().unwrap()) }
+    pub fn new() -> Result<Library, Box<dyn Error>> {
+        Ok(Library { library: Rc::new(ft::Library::init()?) })
     }
 
 
-    pub fn new_font(&self, file: &str, size: isize) -> Font {
-        let mut face = self.library.new_face(file, 0).unwrap();
-        face.set_char_size(0, size * 64, 0, 0).unwrap();
-        let metrics = face.size_metrics().unwrap();
+    pub fn new_font(&self, file: &str, size: isize) -> Result<Font, Box<dyn Error>> {
+        let mut face = self.library.new_face(file, 0)?;
+        face.set_char_size(0, size * 64, 0, 0)?;
+        let metrics = match face.size_metrics() {
+            Some(metrics) => metrics,
+            None => return Err(TextError { error: "face doesn't have size metrics" }.into())
+        };
+        let ascender = -(metrics.ascender / 64) as f32;
 
         let mut atlas_data: Vec<u8> = std::iter::repeat(0).take(1024 * 1024 * 4).collect();
 
@@ -68,7 +97,7 @@ impl Library {
                 x = 0;
                 y += metrics.height as usize / 64 + 1;
             }
-            Self::blit_glyph(atlas_data.as_mut_slice(), &bitmap, x, y);
+            Self::blit_glyph(atlas_data.as_mut_slice(), &bitmap, x, y)?;
             let tex_tl = vec2(x as f32 - 0.5, y as f32 - 0.5) / 1024.0;
             let size = vec2(bitmap.width() as f32 + 1.0, -bitmap.rows() as f32 - 1.0);
             x += bitmap.width() as usize + 1;
@@ -76,13 +105,12 @@ impl Library {
                 tex_tl,
                 tex_br: tex_tl + vec2(size.x, -size.y) / 1024.0,
                 size,
-                offset: vec2(glyph.bitmap_left() as f32 - 0.5, glyph.bitmap_top() as f32 + 0.5),
-                advance: (glyph.advance().x / 64) as _
+                offset: vec2(glyph.bitmap_left() as f32 - 0.5, ascender + glyph.bitmap_top() as f32 + 0.5)
             });
         }
 
-        let mut atlas = rgl::Texture::new().unwrap();
-        atlas.set_data(atlas_data.as_slice(), 1024, 1024).unwrap();
+        let mut atlas = rgl::Texture::new()?;
+        atlas.set_data(atlas_data.as_slice(), 1024, 1024)?;
 
         extern "C" {
             fn hb_ft_font_create(ft_face: ft::ffi::FT_Face, _: hb::hb::hb_destroy_func_t) -> *mut hb::hb::hb_font_t;
@@ -92,21 +120,28 @@ impl Library {
             hb::Owned::from_raw(raw_font)
         };
 
-        Font {
+        Ok(Font {
             library: ManuallyDrop::new(self.library.clone()),
             face: ManuallyDrop::new(face),
             font: ManuallyDrop::new(font),
             atlas,
-            glyphs
-        }
+            glyphs,
+            height: (metrics.height / 64) as _
+        })
     }
 
 
-    fn blit_glyph(atlas: &mut [u8], bitmap: &ft::Bitmap, x: usize, y: usize) {
-        assert_eq!(bitmap.pixel_mode().unwrap(), ft::bitmap::PixelMode::Gray);
-        assert_eq!(bitmap.raw().num_grays, 256);
+    fn blit_glyph(atlas: &mut [u8], bitmap: &ft::Bitmap, x: usize, y: usize) -> Result<(), Box<dyn Error>> {
+        if bitmap.pixel_mode()? != ft::bitmap::PixelMode::Gray {
+            return Err(TextError { error: "bitmap pixel mode is not gray" }.into());
+        }
+        if bitmap.raw().num_grays != 256 {
+            return Err(TextError { error: "bitmap gray levels is not 256" }.into());
+        }
         // TODO: Go up instead if the pitch is negative.
-        assert!(bitmap.pitch() >= 0);
+        if bitmap.pitch() < 0 {
+            return Err(TextError { error: "bitmap pitch is negative" }.into());
+        }
         let bitmap_buffer = bitmap.buffer();
         let mut atlas_p = (x + y * 1024) * 4;
         let mut bitmap_p = 0;
@@ -123,6 +158,7 @@ impl Library {
             atlas_p += (1024 - bitmap.width() as usize) * 4;
             bitmap_p += (bitmap.pitch() - bitmap.width()) as usize;
         }
+        Ok(())
     }
 }
 
@@ -134,7 +170,7 @@ impl Font {
 
 
     pub fn height(&self) -> f32 {
-        (self.face.size_metrics().unwrap().height / 64) as _
+        self.height
     }
 }
 
@@ -160,51 +196,28 @@ impl Text {
     }
 
 
-    pub fn add_text(&mut self, font: &Font, text: &str, position: Vec2) {
+    pub fn add_text(&mut self, font: &Font, text: &str, mut position: Vec2) {
         self.vertex_data.reserve(text.len() * 6);
 
-        let mut cursor = position + vec2(0.0, -(font.face.size_metrics().unwrap().ascender / 64) as _);
-        for c in text.chars() {
-            let glyph = &font.glyphs[&font.face.get_char_index(c as _)];
-            if glyph.size == vec2(1.0, -1.0) {
-                cursor.x += glyph.advance;
-                continue;
-            }
-            let tl = cursor + glyph.offset;
-            let br = tl + glyph.size;
-            cursor.x += glyph.advance;
-            self.vertex_data.extend([
-                Vertex::new(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y)),
-                Vertex::new(vec2(tl.x, br.y), vec2(glyph.tex_tl.x, glyph.tex_br.y)),
-                Vertex::new(vec2(br.x, br.y), vec2(glyph.tex_br.x, glyph.tex_br.y)),
-                Vertex::new(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y)),
-                Vertex::new(vec2(br.x, br.y), vec2(glyph.tex_br.x, glyph.tex_br.y)),
-                Vertex::new(vec2(br.x, tl.y), vec2(glyph.tex_br.x, glyph.tex_tl.y))
-            ].into_iter());
-        }
-    }
-
-
-    pub fn add_hb_text(&mut self, font: &Font, text: &str, position: Vec2) {
-        self.vertex_data.reserve(text.len() * 6);
-
-        let mut buffer = hb::UnicodeBuffer::new().add_str(text);
-        buffer = buffer.guess_segment_properties();
+        let buffer = hb::UnicodeBuffer::new()
+            .add_str(text)
+            .set_direction(hb::Direction::Ltr)
+            .set_script("Latn".parse().unwrap())
+            .set_language("en".parse().unwrap());
         let glyphs = hb::shape(&font.font, buffer, &[]);
         let positions = glyphs.get_glyph_positions();
         let infos = glyphs.get_glyph_infos();
         let glyph_iter = positions.iter().zip(infos);
 
-        let mut cursor = position + vec2(0.0, -(font.face.size_metrics().unwrap().ascender / 64) as _);
-        for (position, info) in glyph_iter {
+        for (glyph_p, info) in glyph_iter {
             let glyph = &font.glyphs[&info.codepoint];
             if glyph.size == vec2(1.0, -1.0) {
-                cursor += vec2((position.x_advance / 64) as _, (position.y_advance / 64) as _);
+                position += vec2((glyph_p.x_advance / 64) as _, (glyph_p.y_advance / 64) as _);
                 continue;
             }
-            let tl = cursor + glyph.offset + vec2((position.x_offset / 64) as _, (position.y_offset / 64) as _);
+            let tl = position + glyph.offset + vec2((glyph_p.x_offset / 64) as _, (glyph_p.y_offset / 64) as _);
             let br = tl + glyph.size;
-            cursor += vec2((position.x_advance / 64) as _, (position.y_advance / 64) as _);
+            position += vec2((glyph_p.x_advance / 64) as _, (glyph_p.y_advance / 64) as _);
             self.vertex_data.extend([
                 Vertex::new(vec2(tl.x, tl.y), vec2(glyph.tex_tl.x, glyph.tex_tl.y)),
                 Vertex::new(vec2(tl.x, br.y), vec2(glyph.tex_tl.x, glyph.tex_br.y)),

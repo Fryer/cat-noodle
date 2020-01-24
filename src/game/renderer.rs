@@ -11,7 +11,7 @@ use lib::rgl;
 use lib::math::vec2;
 
 use super::state;
-use text::Text;
+use text::{Font, Text};
 use ground::Ground;
 use noodle_cat::NoodleCat;
 
@@ -24,10 +24,8 @@ pub struct Renderer {
     ground: Ground,
     cat_sprite: rgl::Texture,
     cat: NoodleCat,
-    open_sans: text::Font,
-    roboto: text::Font,
-    small_roboto: text::Font,
-    text: (Text, Text, Text)
+    font: Font,
+    text: Text
 }
 
 
@@ -57,30 +55,11 @@ impl Renderer {
         let cat_sprite = Self::load_texture("img/cat.png")?;
         let cat = NoodleCat::new()?;
 
-        let library = text::Library::new();
-        let open_sans = library.new_font("font/OpenSans-Regular.ttf", 48);
-        let roboto = library.new_font("font/Roboto-Regular.ttf", 48);
-        let small_roboto = library.new_font("font/Roboto-Italic.ttf", 24);
-        let mut text = (Text::new(), Text::new(), Text::new());
-        let mut p = vec2(10.0, -10.0);
-        text.2.add_hb_text(&small_roboto, "OpenSans with FreeType (no kerning):", p);
-        p.y -= small_roboto.height();
-        text.0.add_text(&open_sans, "Cat Noodle! T,T,T, +/- WAT.", p);
-        p.y -= open_sans.height() * 1.5;
-        text.2.add_hb_text(&small_roboto, "OpenSans with FreeType + HarfBuzz:", p);
-        p.y -= small_roboto.height();
-        text.0.add_hb_text(&open_sans, "Cat Noodle! T,T,T, +/- WAT.", p);
-        p.y -= open_sans.height() * 1.5;
-        text.2.add_hb_text(&small_roboto, "Roboto with FreeType (no kerning):", p);
-        p.y -= small_roboto.height();
-        text.1.add_text(&roboto, "Cat Noodle! T,T,T, +/- WAT.", p);
-        p.y -= roboto.height() * 1.5;
-        text.2.add_hb_text(&small_roboto, "Roboto with FreeType + HarfBuzz:", p);
-        p.y -= small_roboto.height();
-        text.1.add_hb_text(&roboto, "Cat Noodle! T,T,T, +/- WAT.", p);
-        text.0.update(false)?;
-        text.1.update(false)?;
-        text.2.update(false)?;
+        let font = text::Library::new()?.new_font("font/Roboto-Regular.ttf", 24)?;
+        let mut text = Text::new();
+        text.add_text(&font, "Cat Noodle!", vec2(10.0, -10.0));
+        text.add_text(&font, "~~ =^-^= ~~", vec2(10.0, -10.0 - font.height()));
+        text.update(false)?;
 
         Ok(Renderer {
             sprite_program,
@@ -90,9 +69,7 @@ impl Renderer {
             ground,
             cat_sprite,
             cat,
-            open_sans,
-            roboto,
-            small_roboto,
+            font,
             text
         })
     }
@@ -166,12 +143,8 @@ impl Renderer {
 
         self.sprite_program.use_program()?;
         Self::set_transform(&mut self.sprite_program, 1.0 / 360.0, -640.0, 360.0, 1.0, 0.0)?;
-        self.open_sans.bind(0)?;
-        self.text.0.render()?;
-        self.roboto.bind(0)?;
-        self.text.1.render()?;
-        self.small_roboto.bind(0)?;
-        self.text.2.render()?;
+        self.font.bind(0)?;
+        self.text.render()?;
 
         Ok(())
     }
