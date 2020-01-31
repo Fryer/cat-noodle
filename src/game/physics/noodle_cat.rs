@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use wrapped2d::b2;
 use wrapped2d::dynamics::world::{BodyHandle, JointHandle};
 use wrapped2d::dynamics::body::FixtureHandle;
@@ -15,22 +17,23 @@ use super::{
 
 
 pub struct NoodleCat {
-    links: Vec<BodyHandle>,
-    muscles: Vec<JointHandle>,
+    links: VecDeque<BodyHandle>,
+    muscles: VecDeque<JointHandle>,
     tail_links: Vec<BodyHandle>,
     head_sensor: FixtureHandle,
     grab: Option<JointHandle>,
     grabbed: Option<BodyHandle>,
     grab_d: Option<Vec2>,
-    walk_length: f32
+    walk_length: f32,
+    extend_phase: f32
 }
 
 
 impl NoodleCat {
     pub fn new(world: &mut B2World, cat: &state::Cat) -> NoodleCat {
         let path = &cat.path;
-        let mut links: Vec<_> = Vec::with_capacity(path.len());
-        let mut muscles: Vec<_> = Vec::with_capacity(path.len().saturating_sub(1));
+        let mut links: VecDeque<_> = VecDeque::with_capacity(path.len());
+        let mut muscles: VecDeque<_> = VecDeque::with_capacity(path.len().saturating_sub(1));
         let mut link = world.create_body(
             &b2::BodyDef {
                 body_type: b2::BodyType::Dynamic,
@@ -49,12 +52,12 @@ impl NoodleCat {
         fixture.friction = 0.0;
         fixture.filter.group_index = -1;
         world.body_mut(link).create_fixture(&circle, &mut fixture);
-        links.push(link);
+        links.push_back(link);
         for (p, p2) in path.iter().copied().zip(path.iter().copied().skip(1)) {
             let next = world.create_body(
                 &b2::BodyDef {
                     body_type: b2::BodyType::Dynamic,
-                    position: to_bvec(p),
+                    position: to_bvec(p2),
                     linear_damping: 2.0,
                     angular_damping: 1.0,
                     ..b2::BodyDef::new()
@@ -81,8 +84,8 @@ impl NoodleCat {
             );
             link = next;
             head = link;
-            links.push(link);
-            muscles.push(muscle);
+            links.push_back(link);
+            muscles.push_back(muscle);
         }
 
         let tail = &cat.tail;
@@ -127,7 +130,7 @@ impl NoodleCat {
             let next = world.create_body(
                 &b2::BodyDef {
                     body_type: b2::BodyType::Dynamic,
-                    position: to_bvec(p),
+                    position: to_bvec(p2),
                     linear_damping: 2.0,
                     angular_damping: 1.0,
                     gravity_scale: 0.1,
@@ -171,16 +174,25 @@ impl NoodleCat {
             grab: None,
             grabbed: None,
             grab_d: None,
-            walk_length: 0.0
+            walk_length: 0.0,
+            extend_phase: 1.0
         }
     }
 
 
     pub fn update(&self, cat: &mut state::Cat, world: &B2World) {
+        if cat.path.len() != self.links.len() {
+            cat.path.resize(self.links.len(), vec2(0.0, 0.0));
+        }
         for (p, link) in cat.path.iter_mut().zip(self.links.iter().copied()) {
             let body = world.body(link);
             p.x = body.position().x;
             p.y = body.position().y;
+        }
+        if self.extend_phase < 1.0 {
+            let p = cat.path.get(cat.path.len() - 2).copied().unwrap();
+            let head = cat.path.back_mut().unwrap();
+            *head = p + (*head - p) * self.extend_phase;
         }
         for (p, link) in cat.tail.iter_mut().zip(self.tail_links.iter().copied()) {
             let body = world.body(link);
@@ -203,7 +215,7 @@ impl NoodleCat {
         let mut separation = std::f32::INFINITY;
         let mut other = None;
         let mut normal = vec2(0.0, 0.0);
-        let head = self.links.last().copied().unwrap();
+        let head = self.links.back().copied().unwrap();
         for (_, contact) in world.body(head).contacts() {
             if !contact.is_touching() {
                 continue;
@@ -244,6 +256,10 @@ impl NoodleCat {
             else if self.grab.is_none() {
                 grab = false;
             }
+        }
+        // Don't grab while extending.
+        if cat.extending {
+            grab = false;
         }
         if grab {
             if let Some(grab) = self.grab {
@@ -290,24 +306,85 @@ impl NoodleCat {
         if grab {
             Self::control_relaxed(world, &mut control_iter);
             self.follow_head(world, &cat);
-            return;
         }
-        if let Some(direction) = cat.direction {
-            let mut body = world.body_mut(*self.links.last().unwrap());
-            let d = Vec2::from_angle(direction);
-            if cat.flying {
-                body.set_linear_velocity(&to_bvec(d * 5.0));
+        else {
+            if let Some(direction) = cat.direction {
+                let mut body = world.body_mut(*self.links.back().unwrap());
+                let d = Vec2::from_angle(direction);
+                if cat.flying {
+                    body.set_linear_velocity(&to_bvec(d * 5.0));
+                }
+                else {
+                    // Apply swimming force proportional to cat length.
+                    let force = cat.path.len() as f32;
+                    body.apply_force_to_center(&to_bvec(d * force), true);
+                    drop(body);
+                    Self::control_movement(world, cat, &mut control_iter);
+                    self.walk_length = 8.0 * delta_time;
+                }
             }
-            else {
-                // Apply swimming force proportional to cat length.
-                let force = cat.path.len() as f32;
-                body.apply_force_to_center(&to_bvec(d * force), true);
-                drop(body);
-                Self::control_movement(world, cat, &mut control_iter);
-                self.walk_length = 8.0 * delta_time;
-            }
+            Self::control_relaxed(world, &mut control_iter);
         }
-        Self::control_relaxed(world, &mut control_iter);
+        drop(control_iter);
+
+        self.extend_phase += delta_time * 80.0;
+        if cat.extending {
+            if self.extend_phase > 1.0 {
+                let previous = self.links.back().copied().unwrap();
+                let p = cat.path.back().copied().unwrap();
+                let angle = world.body(previous).angle();
+                let d = Vec2::from_angle(angle);
+                let p2 = p + d * 0.1;
+                let link = world.create_body(
+                    &b2::BodyDef {
+                        body_type: b2::BodyType::Dynamic,
+                        position: to_bvec(p2),
+                        angle,
+                        linear_damping: 2.0,
+                        angular_damping: 1.0,
+                        ..b2::BodyDef::new()
+                    }
+                );
+                let circle = b2::CircleShape::new_with(b2::Vec2 { x: 0.0, y: 0.0 }, 0.5);
+                let mut fixture = b2::FixtureDef::new();
+                fixture.density = 1.0;
+                fixture.restitution = 0.0;
+                fixture.friction = 0.0;
+                fixture.filter.group_index = -1;
+                world.body_mut(link).create_fixture(&circle, &mut fixture);
+                world.create_joint(
+                    &b2::RevoluteJointDef {
+                        local_anchor_b: b2::Vec2 { x: -0.1, y: 0.0 },
+                        lower_angle: -std::f32::consts::PI * 0.06,
+                        upper_angle: std::f32::consts::PI * 0.06,
+                        enable_limit: true,
+                        ..b2::RevoluteJointDef::new(previous, link)
+                    }
+                );
+                let muscle = world.create_joint(
+                    &b2::MotorJointDef {
+                        max_force: 0.0,
+                        max_torque: 10.0,
+                        correction_factor: 1.0,
+                        ..b2::MotorJointDef::new(previous, link)
+                    }
+                );
+                self.links.push_back(link);
+                self.muscles.push_back(muscle);
+
+                // Recreate head sensor.
+                world.body_mut(previous).destroy_fixture(self.head_sensor);
+                let circle = b2::CircleShape::new_with(b2::Vec2 { x: 0.0, y: 0.0 }, 1.0);
+                let mut fixture = b2::FixtureDef::new();
+                fixture.is_sensor = true;
+                fixture.filter.group_index = -1;
+                self.head_sensor = world.body_mut(link).create_fixture(&circle, &mut fixture);
+            }
+            self.extend_phase = self.extend_phase.fract();
+        }
+        else {
+            self.extend_phase = self.extend_phase.min(1.0);
+        }
     }
 
 
@@ -333,7 +410,7 @@ impl NoodleCat {
     }
 
 
-    fn make_control_iter<'a>(muscles: &'a Vec<JointHandle>, cat: &'a state::Cat)
+    fn make_control_iter<'a>(muscles: &'a VecDeque<JointHandle>, cat: &'a state::Cat)
         -> impl Iterator<Item = (usize, JointHandle, f32, Vec2)> + Clone + 'a
     {
         let p3_iter = cat.path.iter().copied()

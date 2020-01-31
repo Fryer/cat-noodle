@@ -61,7 +61,7 @@ impl Game {
             if tile.1 == 'P' { Some(tile.0) }
             else { None }
         }).unwrap();
-        let path: VecDeque<_> = (0..80).map(|x|
+        let path: VecDeque<_> = (0..30).map(|x|
             vec2(
                 x as f32 * 0.1 + 2.0,
                 0.0
@@ -80,6 +80,7 @@ impl Game {
                 right: false,
                 up: false,
                 down: false,
+                extend: false,
                 fly: false,
                 toggle_debug_physics: false,
                 toggle_debug_physics_shapes: false,
@@ -101,6 +102,7 @@ impl Game {
             },
             cat: state::Cat {
                 direction: None,
+                extending: false,
                 flying: false,
                 path,
                 tail,
@@ -198,6 +200,9 @@ impl Game {
             Event::Key(action, glfw::Key::Down) => {
                 input.down = action != glfw::Action::Release;
             }
+            Event::Key(action, glfw::Key::X) => {
+                input.extend = action != glfw::Action::Release;
+            }
             Event::Key(action, glfw::Key::LeftControl) => {
                 input.fly = action != glfw::Action::Release;
             }
@@ -273,6 +278,7 @@ impl Game {
             cat.direction = None;
         }
 
+        cat.extending = input.extend;
         cat.flying = input.fly;
     }
 }

@@ -16,6 +16,7 @@ pub struct Input {
     pub right: bool,
     pub up: bool,
     pub down: bool,
+    pub extend: bool,
     pub fly: bool,
     pub toggle_debug_physics: bool,
     pub toggle_debug_physics_shapes: bool,
@@ -57,6 +58,7 @@ pub struct Ground {
 
 pub struct Cat {
     pub direction: Option<f32>,
+    pub extending: bool,
     pub flying: bool,
     pub path: VecDeque<Vec2>,
     pub tail: VecDeque<Vec2>,
