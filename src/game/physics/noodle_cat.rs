@@ -25,7 +25,9 @@ pub struct NoodleCat {
     grabbed: Option<BodyHandle>,
     grab_d: Option<Vec2>,
     walk_length: f32,
-    extend_phase: f32
+    extend_phase: f32,
+    contracting: bool,
+    contract_phase: f32
 }
 
 
@@ -175,7 +177,9 @@ impl NoodleCat {
             grabbed: None,
             grab_d: None,
             walk_length: 0.0,
-            extend_phase: 1.0
+            extend_phase: 1.0,
+            contracting: false,
+            contract_phase: 0.0
         }
     }
 
@@ -193,6 +197,11 @@ impl NoodleCat {
             let p = cat.path.get(cat.path.len() - 2).copied().unwrap();
             let head = cat.path.back_mut().unwrap();
             *head = p + (*head - p) * self.extend_phase;
+        }
+        if self.contract_phase > 0.0 {
+            let p = cat.path.get(1).copied().unwrap();
+            let butt = cat.path.front_mut().unwrap();
+            *butt = p + (*butt - p) * self.contract_phase;
         }
         for (p, link) in cat.tail.iter_mut().zip(self.tail_links.iter().copied()) {
             let body = world.body(link);
@@ -328,7 +337,7 @@ impl NoodleCat {
         drop(control_iter);
 
         self.extend_phase += delta_time * 80.0;
-        if cat.extending {
+        if cat.extending && cat.path.len() < 200 {
             if self.extend_phase > 1.0 {
                 let previous = self.links.back().copied().unwrap();
                 let p = cat.path.back().copied().unwrap();
@@ -379,11 +388,51 @@ impl NoodleCat {
                 fixture.is_sensor = true;
                 fixture.filter.group_index = -1;
                 self.head_sensor = world.body_mut(link).create_fixture(&circle, &mut fixture);
+
+                self.extend_phase -= 1.0;
             }
-            self.extend_phase = self.extend_phase.fract();
         }
         else {
             self.extend_phase = self.extend_phase.min(1.0);
+        }
+
+        self.contract_phase -= delta_time * 80.0;
+        if self.contracting && self.contract_phase <= 0.0 {
+            let butt = self.links.pop_front().unwrap();
+            world.destroy_body(butt);
+
+            // Reconnect tail root.
+            // TODO: Smoothly interpolate the tail root connection.
+            let butt = self.links.front().copied().unwrap();
+            let tail_root = self.tail_links.first().copied().unwrap();
+            world.create_joint(
+                &b2::RevoluteJointDef {
+                    local_anchor_b: b2::Vec2 { x: 0.4, y: 0.0 },
+                    lower_angle: -std::f32::consts::PI * 0.25,
+                    upper_angle: std::f32::consts::PI * 0.25,
+                    enable_limit: true,
+                    ..b2::RevoluteJointDef::new(butt, tail_root)
+                }
+            );
+            world.create_joint(
+                &b2::MotorJointDef {
+                    max_force: 0.0,
+                    max_torque: 5.0,
+                    correction_factor: 0.5,
+                    ..b2::MotorJointDef::new(butt, tail_root)
+                }
+            );
+
+            self.contracting = false;
+        }
+        else if cat.contracting && self.links.len() > 30 {
+            if self.contract_phase < 0.0 {
+                self.contracting = true;
+                self.contract_phase += 1.0;
+            }
+        }
+        else {
+            self.contract_phase = self.contract_phase.max(0.0);
         }
     }
 

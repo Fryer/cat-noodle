@@ -81,6 +81,7 @@ impl Game {
                 up: false,
                 down: false,
                 extend: false,
+                contract: false,
                 fly: false,
                 toggle_debug_physics: false,
                 toggle_debug_physics_shapes: false,
@@ -103,6 +104,7 @@ impl Game {
             cat: state::Cat {
                 direction: None,
                 extending: false,
+                contracting: false,
                 flying: false,
                 path,
                 tail,
@@ -203,6 +205,9 @@ impl Game {
             Event::Key(action, glfw::Key::X) => {
                 input.extend = action != glfw::Action::Release;
             }
+            Event::Key(action, glfw::Key::C) => {
+                input.contract = action != glfw::Action::Release;
+            }
             Event::Key(action, glfw::Key::LeftControl) => {
                 input.fly = action != glfw::Action::Release;
             }
@@ -279,6 +284,7 @@ impl Game {
         }
 
         cat.extending = input.extend;
+        cat.contracting = input.contract;
         cat.flying = input.fly;
     }
 }
