@@ -75,6 +75,7 @@ impl Game {
         ).collect();
         
         let state = State {
+            paused: false,
             input: state::Input {
                 left: false,
                 right: false,
@@ -84,6 +85,8 @@ impl Game {
                 extend: false,
                 contract: false,
                 fly: false,
+                toggle_pause: false,
+                step: false,
                 toggle_debug_physics: false,
                 toggle_debug_physics_shapes: false,
                 toggle_debug_physics_joints: false,
@@ -95,6 +98,7 @@ impl Game {
                 shapes: VecDeque::new(),
                 frames: VecDeque::new(),
                 skipped_steps: false,
+                paused: false,
                 show_physics: false,
                 physics_flags: state::DebugPhysics::all()
             },
@@ -161,6 +165,16 @@ impl Game {
         }
 
         self.update_debug();
+
+        if self.state.input.toggle_pause {
+            self.state.input.toggle_pause = false;
+            self.state.paused ^= true;
+        }
+        if self.state.paused && !self.state.input.step {
+            return true;
+        }
+        self.state.input.step = false;
+
         self.update_cat();
 
         self.physics.step(&mut self.state, delta_time);
@@ -170,6 +184,8 @@ impl Game {
 
     fn debug(&mut self) {
         let debug = &mut self.state.debug;
+
+        debug.paused = self.state.paused;
 
         if debug.show_physics {
             self.physics.debug(debug);
@@ -215,6 +231,12 @@ impl Game {
             }
             Event::Key(action, glfw::Key::LeftControl) => {
                 input.fly = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::P) => {
+                input.toggle_pause = action != glfw::Action::Release;
+            }
+            Event::Key(action, glfw::Key::O) => {
+                input.step = action != glfw::Action::Release;
             }
             Event::Key(action, glfw::Key::Num0) => {
                 input.toggle_debug_physics = action != glfw::Action::Release;

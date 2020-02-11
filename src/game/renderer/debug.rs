@@ -50,6 +50,9 @@ impl Renderer {
         let fps = info.frames.len();
         let (r, g, b) = if info.skipped_steps { (255, 0, 0) } else { (0, 255, 0) };
         self.text.add_text_rgb(&self.font, format!("{}", fps).as_str(), p + vec2(40.0, 0.0), r, g, b);
+        if info.paused {
+            self.text.add_text_rgb(&self.font, "Paused", p + vec2(80.0, 0.0), 255, 128, 128);
+        }
         p.y -= self.font.height() * 1.5;
         self.text.add_text(&self.font, "[0]: ", p);
         let (r, g, b) = if info.show_physics { (191, 255, 191) } else { (191, 128, 128) };

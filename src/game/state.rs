@@ -20,6 +20,8 @@ pub struct Input {
     pub extend: bool,
     pub contract: bool,
     pub fly: bool,
+    pub toggle_pause: bool,
+    pub step: bool,
     pub toggle_debug_physics: bool,
     pub toggle_debug_physics_shapes: bool,
     pub toggle_debug_physics_joints: bool,
@@ -49,6 +51,7 @@ pub struct DebugInfo {
     pub shapes: VecDeque<(DebugShape, DebugColor)>,
     pub frames: VecDeque<time::Instant>,
     pub skipped_steps: bool,
+    pub paused: bool,
     pub show_physics: bool,
     pub physics_flags: DebugPhysics
 }
@@ -71,6 +74,7 @@ pub struct Cat {
 }
 
 pub struct State {
+    pub paused: bool,
     pub input: Input,
     pub debug: DebugInfo,
     pub ground: Ground,
