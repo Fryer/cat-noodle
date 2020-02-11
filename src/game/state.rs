@@ -16,6 +16,7 @@ pub struct Input {
     pub right: bool,
     pub up: bool,
     pub down: bool,
+    pub turn: bool,
     pub extend: bool,
     pub contract: bool,
     pub fly: bool,
@@ -59,6 +60,7 @@ pub struct Ground {
 
 pub struct Cat {
     pub direction: Option<f32>,
+    pub turning: bool,
     pub extending: bool,
     pub contracting: bool,
     pub flying: bool,

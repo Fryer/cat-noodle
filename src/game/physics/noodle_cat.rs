@@ -266,8 +266,8 @@ impl NoodleCat {
                 grab = false;
             }
         }
-        // Don't grab while extending.
-        if cat.extending {
+        // Don't grab while turning or extending.
+        if cat.turning || cat.extending {
             grab = false;
         }
         if grab {
@@ -335,6 +335,30 @@ impl NoodleCat {
             Self::control_relaxed(world, &mut control_iter);
         }
         drop(control_iter);
+
+        if cat.turning {
+            let path: Vec<_> = self.links.iter().copied().rev().map(|link| {
+                let body = world.body(link);
+                (to_vec2(*body.position()), body.angle())
+            }).collect();
+            let p_iter = path.iter().copied().map(|(p, _)| p);
+            let angle_iter = path.iter().copied().skip(1).map(|(_, angle)| angle + std::f32::consts::PI);
+            let angle_iter = angle_iter.clone().chain(std::iter::once(angle_iter.last().unwrap()));
+            let turn_iter = self.links.iter().copied()
+                .zip(p_iter)
+                .zip(angle_iter)
+                .map(|((link, p), angle)| (link, p, angle));
+
+            for (link, p, angle) in turn_iter {
+                world.body_mut(link).set_transform(&to_bvec(p), angle);
+            }
+
+            let p = path[0].0 + Vec2::from_angle(path[0].1) * 0.3;
+            let angle = path[0].1 + std::f32::consts::PI;
+            for link in self.tail_links.iter().copied() {
+                world.body_mut(link).set_transform(&to_bvec(p), angle);
+            }
+        }
 
         self.extend_phase += delta_time * 80.0;
         if cat.extending && cat.path.len() < 200 {

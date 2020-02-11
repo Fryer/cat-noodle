@@ -80,6 +80,7 @@ impl Game {
                 right: false,
                 up: false,
                 down: false,
+                turn: false,
                 extend: false,
                 contract: false,
                 fly: false,
@@ -103,6 +104,7 @@ impl Game {
             },
             cat: state::Cat {
                 direction: None,
+                turning: false,
                 extending: false,
                 contracting: false,
                 flying: false,
@@ -202,6 +204,9 @@ impl Game {
             Event::Key(action, glfw::Key::Down) => {
                 input.down = action != glfw::Action::Release;
             }
+            Event::Key(action, glfw::Key::Z) => {
+                input.turn = action != glfw::Action::Release;
+            }
             Event::Key(action, glfw::Key::X) => {
                 input.extend = action != glfw::Action::Release;
             }
@@ -268,7 +273,7 @@ impl Game {
 
 
     fn update_cat(&mut self) {
-        let input = &self.state.input;
+        let input = &mut self.state.input;
         let cat = &mut self.state.cat;
 
         // TODO: Smooth input.
@@ -283,6 +288,10 @@ impl Game {
             cat.direction = None;
         }
 
+        cat.turning = input.turn;
+        if input.turn {
+            input.turn = false;
+        }
         cat.extending = input.extend;
         cat.contracting = input.contract;
         cat.flying = input.fly;
