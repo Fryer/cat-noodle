@@ -102,6 +102,9 @@ impl Game {
                 show_physics: false,
                 physics_flags: state::DebugPhysics::all()
             },
+            gui: state::GUI {
+                cat_energy: 0
+            },
             ground: state::Ground {
                 boxes,
                 dirty: state::DirtyFlags::all()
@@ -115,7 +118,8 @@ impl Game {
                 path,
                 tail,
                 grab_d: None,
-                walk_phase: 0.0
+                walk_phase: 0.0,
+                energy: 1000
             }
         };
 
@@ -165,6 +169,7 @@ impl Game {
         }
 
         self.update_debug();
+        self.update_gui();
 
         if self.state.input.toggle_pause {
             self.state.input.toggle_pause = false;
@@ -291,6 +296,11 @@ impl Game {
             input.toggle_debug_physics_contacts = false;
             debug.physics_flags ^= state::DebugPhysics::CONTACTS;
         }
+    }
+
+
+    fn update_gui(&mut self) {
+        self.state.gui.cat_energy = self.state.cat.energy;
     }
 
 

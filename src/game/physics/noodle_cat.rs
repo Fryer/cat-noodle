@@ -184,7 +184,7 @@ impl NoodleCat {
     }
 
 
-    pub fn update(&self, cat: &mut state::Cat, world: &B2World) {
+    pub fn update(&mut self, cat: &mut state::Cat, world: &B2World) {
         if cat.path.len() != self.links.len() {
             cat.path.resize(self.links.len(), vec2(0.0, 0.0));
         }
@@ -203,11 +203,13 @@ impl NoodleCat {
             let butt = cat.path.front_mut().unwrap();
             *butt = p + (*butt - p) * self.contract_phase;
         }
+
         for (p, link) in cat.tail.iter_mut().zip(self.tail_links.iter().copied()) {
             let body = world.body(link);
             p.x = body.position().x;
             p.y = body.position().y;
         }
+
         cat.grab_d = self.grab_d;
         if cat.direction.is_some() {
             cat.walk_phase += self.walk_length;
@@ -218,7 +220,7 @@ impl NoodleCat {
     }
 
 
-    pub fn control(&mut self, world: &mut B2World, cat: &state::Cat, delta_time: f32) {
+    pub fn control(&mut self, world: &mut B2World, cat: &mut state::Cat, delta_time: f32) {
         self.walk_length = 0.0;
 
         let mut separation = std::f32::INFINITY;
@@ -361,7 +363,7 @@ impl NoodleCat {
         }
 
         self.extend_phase += delta_time * 80.0;
-        if cat.extending && cat.path.len() < 200 {
+        if cat.extending && cat.path.len() < 200 && cat.energy > 0 {
             if self.extend_phase > 1.0 {
                 let previous = self.links.back().copied().unwrap();
                 let p = cat.path.back().copied().unwrap();
@@ -414,6 +416,7 @@ impl NoodleCat {
                 self.head_sensor = world.body_mut(link).create_fixture(&circle, &mut fixture);
 
                 self.extend_phase -= 1.0;
+                cat.energy -= 1;
             }
         }
         else {

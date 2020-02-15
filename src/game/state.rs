@@ -56,6 +56,10 @@ pub struct DebugInfo {
     pub physics_flags: DebugPhysics
 }
 
+pub struct GUI {
+    pub cat_energy: u32
+}
+
 pub struct Ground {
     pub boxes: Vec<Vec2>,
     pub dirty: DirtyFlags
@@ -70,13 +74,15 @@ pub struct Cat {
     pub path: VecDeque<Vec2>,
     pub tail: VecDeque<Vec2>,
     pub grab_d: Option<Vec2>,
-    pub walk_phase: f32
+    pub walk_phase: f32,
+    pub energy: u32
 }
 
 pub struct State {
     pub paused: bool,
     pub input: Input,
     pub debug: DebugInfo,
+    pub gui: GUI,
     pub ground: Ground,
     pub cat: Cat
 }

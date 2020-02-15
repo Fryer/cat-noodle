@@ -2,6 +2,7 @@ extern crate image;
 mod vertex;
 mod text;
 mod debug;
+mod gui;
 mod ground;
 mod noodle_cat;
 
@@ -18,6 +19,7 @@ pub struct Renderer {
     sprite_program: rgl::Program,
     debug_program: rgl::Program,
     debug_renderer: debug::Renderer,
+    gui: gui::GUI,
     ground_sprite: rgl::Texture,
     ground: Ground,
     cat_sprite: rgl::Texture,
@@ -43,7 +45,9 @@ impl Renderer {
             include_str!("renderer/debug.frag")
         )?;
 
-        let debug_renderer = debug::Renderer::new(&text::Library::new()?)?;
+        let text_library = text::Library::new()?;
+        let debug_renderer = debug::Renderer::new(&text_library)?;
+        let gui = gui::GUI::new(&text_library)?;
 
         let ground_sprite = Self::load_texture("img/ground.png")?;
         let ground = Ground::new();
@@ -55,6 +59,7 @@ impl Renderer {
             sprite_program,
             debug_program,
             debug_renderer,
+            gui,
             ground_sprite,
             ground,
             cat_sprite,
@@ -106,6 +111,7 @@ impl Renderer {
         let camera = cat.path.back().unwrap();
 
         self.debug_renderer.update(&mut state.debug)?;
+        self.gui.update(&state.gui)?;
 
         self.ground.update(&mut state.ground)?;
 
@@ -125,11 +131,13 @@ impl Renderer {
         self.cat_sprite.bind(0)?;
         self.cat.render_near()?;
 
+        Self::set_transform(&mut self.sprite_program, 1.0 / 360.0, -640.0, 360.0, 1.0, 0.0)?;
+        self.gui.render_text()?;
+
         self.debug_program.use_program()?;
         Self::set_transform(&mut self.debug_program, zoom, -camera.x, -camera.y, 1.0, 0.0)?;
         self.debug_renderer.render()?;
         self.sprite_program.use_program()?;
-        Self::set_transform(&mut self.sprite_program, 1.0 / 360.0, -640.0, 360.0, 1.0, 0.0)?;
         self.debug_renderer.render_text()?;
 
         Ok(())
